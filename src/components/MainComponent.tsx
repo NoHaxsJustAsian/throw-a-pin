@@ -43,6 +43,69 @@ const foodPin = L.divIcon({
   popupAnchor: [0, -30],
 });
 
+const getLocationIcon = (type: string): string => {
+  const lowerType = type.toLowerCase();
+  
+  // Food & Drink icons
+  if (lowerType.includes('restaurant')) return '🍽️';
+  if (lowerType.includes('cafe')) return '☕';
+  if (lowerType.includes('bar') || lowerType.includes('pub')) return '🍺';
+  if (lowerType.includes('fast_food')) return '🍔';
+  if (lowerType.includes('ice_cream')) return '🍦';
+  if (lowerType.includes('bakery')) return '🥐';
+  if (lowerType.includes('food')) return '🍴';
+  
+  // Entertainment & Nightlife icons
+  if (lowerType.includes('cinema') || lowerType.includes('movie')) return '🎬';
+  if (lowerType.includes('theatre') || lowerType.includes('theater')) return '🎭';
+  if (lowerType.includes('casino')) return '🎰';
+  if (lowerType.includes('arcade')) return '🕹️';
+  if (lowerType.includes('nightclub') || lowerType.includes('night_club')) return '🎵';
+  if (lowerType.includes('karaoke')) return '🎤';
+  if (lowerType.includes('bowling')) return '🎳';
+  if (lowerType.includes('entertainment')) return '🎪';
+  
+  // Shopping & Markets icons
+  if (lowerType.includes('mall')) return '🛍️';
+  if (lowerType.includes('boutique')) return '👗';
+  if (lowerType.includes('market') || lowerType.includes('bazaar')) return '🏪';
+  if (lowerType.includes('bookstore') || lowerType.includes('book_shop')) return '📚';
+  if (lowerType.includes('gift')) return '🎁';
+  if (lowerType.includes('shop')) return '🛒';
+  
+  // Culture & Arts icons
+  if (lowerType.includes('museum')) return '🏛️';
+  if (lowerType.includes('art')) return '🎨';
+  if (lowerType.includes('gallery')) return '🖼️';
+  if (lowerType.includes('concert') || lowerType.includes('music_venue')) return '🎸';
+  
+  // Nature & Outdoors icons
+  if (lowerType.includes('park')) return '🌳';
+  if (lowerType.includes('beach')) return '🏖️';
+  if (lowerType.includes('garden')) return '🌸';
+  if (lowerType.includes('trail') || lowerType.includes('hiking')) return '🥾';
+  if (lowerType.includes('viewpoint') || lowerType.includes('observation')) return '🗻';
+  
+  // Sports & Recreation icons
+  if (lowerType.includes('sports')) return '⚽';
+  if (lowerType.includes('swimming')) return '🏊';
+  if (lowerType.includes('tennis')) return '🎾';
+  if (lowerType.includes('golf')) return '⛳';
+  if (lowerType.includes('climbing')) return '🧗';
+  if (lowerType.includes('yoga')) return '🧘';
+  if (lowerType.includes('gym') || lowerType.includes('fitness')) return '💪';
+  
+  // Tourist Attractions
+  if (lowerType.includes('landmark')) return '🗽';
+  if (lowerType.includes('castle')) return '🏰';
+  if (lowerType.includes('amusement') || lowerType.includes('theme_park')) return '🎡';
+  if (lowerType.includes('aquarium')) return '🐠';
+  if (lowerType.includes('zoo')) return '🦁';
+  
+  // Default pin for unknown types
+  return '📍';
+};
+
 // Add styles to head
 const style = document.createElement('style');
 style.textContent = `
@@ -83,7 +146,7 @@ const RecenterMap: React.FC<{
       let zoomLevel = 4;
       
       if (isRestaurant || isPOI) {
-        zoomLevel = 16; // Same zoom level for both restaurants and POIs
+        zoomLevel = 14; // Changed from 16 to 14 for both restaurants and POIs
       } else if (selectedCity) {
         zoomLevel = 13;
       } else if (selectedState) {
@@ -139,10 +202,51 @@ const CoordinateOverlay = ({ coordinates }: { coordinates: LatLngTuple | null })
   );
 };
 
-type ValidPOIType = "tourism" | "food" | "entertainment" | "shopping";
+type ValidPOIType = 
+  | "food"            // 🍽️ Food
+  | "bars"            // 🍺 Bars & Nightlife
+  | "entertainment"   // 🎭 Entertainment
+  | "shopping"        // 🛍️ Shopping
+  | "arts"            // 🎨 Arts & Culture
+  | "nature"          // 🌳 Nature & Outdoors
+  | "tourist";        // 🎡 Tourist Attractions
 
 const isValidPOIType = (type: string): type is ValidPOIType => {
-  return ["tourism", "food", "entertainment", "shopping"].includes(type);
+  return [
+    "food",
+    "bars",
+    "entertainment",
+    "shopping",
+    "arts",
+    "nature",
+    "tourist"
+  ].includes(type);
+};
+
+const isLocationDuplicate = (
+  newLocation: { latitude: number; longitude: number; name?: string },
+  lastLocation: { coordinates: LatLngTuple; restaurant: any; poi: any } | null
+): boolean => {
+  if (!lastLocation) return false;
+
+  // If it's the exact same coordinates, it's a duplicate
+  if (newLocation.latitude === lastLocation.coordinates[0] && 
+      newLocation.longitude === lastLocation.coordinates[1]) {
+    return true;
+  }
+
+  // If it has a name, check if it matches the last location's name
+  if (newLocation.name) {
+    if (lastLocation.restaurant?.name === newLocation.name) return true;
+    if (lastLocation.poi?.name === newLocation.name) return true;
+  }
+
+  // Check if it's very close to the last location (within ~100 meters)
+  const distance = Math.sqrt(
+    Math.pow((newLocation.latitude - lastLocation.coordinates[0]) * 111000, 2) +
+    Math.pow((newLocation.longitude - lastLocation.coordinates[1]) * 111000 * Math.cos(lastLocation.coordinates[0] * Math.PI / 180), 2)
+  );
+  return distance < 100;
 };
 
 export default function MainComponent() {
@@ -436,28 +540,16 @@ export default function MainComponent() {
         return;
       }
 
-      // Map specific POI types to our categories
-      const typeMapping: Record<string, string[]> = {
-        food: ['restaurant', 'cafe', 'bar', 'meal_takeaway', 'bakery', 'food'],
-        entertainment: ['movie_theater', 'night_club', 'amusement_park', 'casino', 'theatre', 'cinema'],
-        shopping: ['shopping_mall', 'store', 'department_store', 'supermarket', 'mall'],
-        tourism: ['museum', 'art_gallery', 'tourist_attraction', 'park', 'church']
-      };
-
-      const poiType = poi.type.toLowerCase();
-      const matchesSelectedTypes = poiTypes.some(type => 
-        typeMapping[type]?.some(specificType => 
-          poiType.includes(specificType.toLowerCase())
-        )
-      );
-
-      if (!matchesSelectedTypes) {
-        console.log(`POI type "${poiType}" didn't match any selected types:`, poiTypes);
+      // Check if this POI is a duplicate of the currently selected one
+      const currentPOI = selectedPOIs[0];
+      if (currentPOI && 
+          (currentPOI.name === poi.name || 
+           (Math.abs(currentPOI.latitude - poi.latitude) < 0.0001 && 
+            Math.abs(currentPOI.longitude - poi.longitude) < 0.0001))) {
         toast({
-          title: "No matching POIs found",
-          description: "No places matching your selected types were found in view.",
-          variant: "destructive",
-          duration: 3000,
+          title: "Only POI in view",
+          description: "This is the only POI matching your criteria in the current view. Try zooming out or panning to find others.",
+          duration: 5000,
         });
         return;
       }
@@ -788,12 +880,68 @@ export default function MainComponent() {
         });
       }
 
-      const selectedPOI = await findRandomPOI(mapBounds, poiTypes);
+      let selectedPOI = null;
+      let attempts = 0;
+      const maxAttempts = 10; // Increased max attempts to account for duplicate checks
+      const regions = [
+        // Major regions around the world to try
+        { north: 60, south: 35, east: 180, west: -180 },  // Northern Hemisphere
+        { north: 35, south: 0, east: 180, west: -180 },   // Tropical Northern
+        { north: 0, south: -35, east: 180, west: -180 },  // Tropical Southern
+        { north: -35, south: -60, east: 180, west: -180 } // Southern Hemisphere
+      ];
+
+      const lastLocation = lastLocations[0] || null;
+
+      while (!selectedPOI && attempts < maxAttempts) {
+        // Try current map bounds first
+        const tempPOI = await findRandomPOI(mapBounds, poiTypes);
+        if (tempPOI && !isLocationDuplicate(tempPOI, lastLocation)) {
+          selectedPOI = tempPOI;
+        }
+        
+        if (!selectedPOI) {
+          // If not found, try each region
+          for (const region of regions) {
+            if (!selectedPOI) {
+              const tempRegionPOI = await findRandomPOI(region, poiTypes);
+              if (tempRegionPOI && !isLocationDuplicate(tempRegionPOI, lastLocation)) {
+                selectedPOI = tempRegionPOI;
+                break;
+              }
+            }
+          }
+        }
+        
+        attempts++;
+        
+        if (!selectedPOI && attempts === maxAttempts - 1) {
+          // On second-to-last attempt, try with all POI types if user-selected types fail
+          const allPOITypes = ["food", "bars", "entertainment", "shopping", "arts", "nature", "tourist"];
+          const tempAllTypesPOI = await findRandomPOI(mapBounds, allPOITypes);
+          if (tempAllTypesPOI && !isLocationDuplicate(tempAllTypesPOI, lastLocation)) {
+            selectedPOI = tempAllTypesPOI;
+          }
+          
+          // If still not found, try regions with all types
+          if (!selectedPOI) {
+            for (const region of regions) {
+              if (!selectedPOI) {
+                const tempRegionAllTypesPOI = await findRandomPOI(region, allPOITypes);
+                if (tempRegionAllTypesPOI && !isLocationDuplicate(tempRegionAllTypesPOI, lastLocation)) {
+                  selectedPOI = tempRegionAllTypesPOI;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
 
       if (!selectedPOI) {
         toast({
-          title: "No POIs found",
-          description: "Try panning the map to a different area or selecting different POI types.",
+          title: "No unique POIs found",
+          description: "Unable to find any new points of interest. Please try again.",
           variant: "destructive",
           duration: 3000,
         });
@@ -1077,7 +1225,14 @@ export default function MainComponent() {
                       <>
                         <Marker 
                           position={coordinates}
-                          icon={selectedRestaurant ? foodPin : regularPin}
+                          icon={L.divIcon({
+                            html: selectedRestaurant ? getLocationIcon(selectedRestaurant.type || 'restaurant') : 
+                                  selectedPOIs.length > 0 ? getLocationIcon(selectedPOIs[0].type) : '📍',
+                            className: 'custom-pin',
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 30],
+                            popupAnchor: [0, -30],
+                          })}
                         >
                           <Popup>
                             <div>
@@ -1132,7 +1287,7 @@ export default function MainComponent() {
                             key={`${poi.id}-${index}`}
                             position={[poi.latitude, poi.longitude]}
                             icon={L.divIcon({
-                              html: getPOIIcon(poi.type),
+                              html: getLocationIcon(poi.type),
                               className: 'custom-pin',
                               iconSize: [30, 30],
                               iconAnchor: [15, 30],
@@ -1279,6 +1434,34 @@ export default function MainComponent() {
                             </div>
                           </div>
                         )}
+                        {location.poi && (
+                          <div className="bg-card text-card-foreground rounded-md p-3 border">
+                            <div className="flex justify-between items-start gap-2">
+                              <h3 className="text-sm font-semibold truncate">
+                                {location.poi.name}
+                              </h3>
+                              {location.poi.openingHours && (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-xs font-medium",
+                                  checkIfOpen(location.poi.openingHours) 
+                                    ? "bg-green-500/20 text-green-500" 
+                                    : "bg-red-500/20 text-red-500"
+                                )}>
+                                  {checkIfOpen(location.poi.openingHours) ? "Open" : "Closed"}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {location.poi.type}
+                            </p>
+                            <div className="flex items-center gap-1 mt-2">
+                              <span className="text-sm">{getLocationIcon(location.poi.type)}</span>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {location.poi.address}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -1294,20 +1477,5 @@ export default function MainComponent() {
 
 // Helper function to get POI icons
 const getPOIIcon = (type: string): string => {
-  const typeMap: Record<string, string> = {
-    'food': '🍽️',
-    'entertainment': '🎭',
-    'shopping': '🛍️',
-    'tourism': '🏛️',
-    'restaurant': '🍽️',
-    'cafe': '☕',
-    'bar': '🍺',
-    'cinema': '🎬',
-    'theatre': '🎭',
-    'museum': '🏛️',
-    'mall': '🛍️',
-    'park': '🌳',
-    'default': '📍'
-  };
-  return typeMap[type.toLowerCase()] || typeMap.default;
+  return getLocationIcon(type);
 };

@@ -32,6 +32,12 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SettingsProps {
   isLandOnly: boolean;
@@ -83,10 +89,10 @@ export default function Settings({
   const [stateOpen, setStateOpen] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
 
-  // Add effect to set all POI types when POI is enabled
+  // Add effect to set all POI types only on initial mount
   useEffect(() => {
     if (!poiTypes || poiTypes.length === 0) {
-      setPoiTypes?.(['food', 'entertainment', 'shopping', 'tourism', 'leisure', 'sports', 'education', 'health']);
+      setPoiTypes?.(['food', 'entertainment', 'nature']);
     }
   }, [poiTypes, setPoiTypes]);
 
@@ -364,14 +370,13 @@ export default function Settings({
             <AccordionContent className="space-y-3 pt-3 pl-2 text-sm">
               <div className="space-y-2">
                 {[
-                  { id: 'food', label: 'Food & Drink', icon: '🍽️' },
+                  { id: 'food', label: 'Food', icon: '🍽️' },
+                  { id: 'bars', label: 'Bars', icon: '🍺' },
                   { id: 'entertainment', label: 'Entertainment', icon: '🎭' },
                   { id: 'shopping', label: 'Shopping', icon: '🛍️' },
-                  { id: 'tourism', label: 'Tourism', icon: '🏛️' },
-                  { id: 'leisure', label: 'Leisure', icon: '🎮' },
-                  { id: 'sports', label: 'Sports', icon: '⚽' },
-                  { id: 'education', label: 'Education', icon: '📚' },
-                  { id: 'health', label: 'Health', icon: '🏥' }
+                  { id: 'arts', label: 'Arts', icon: '🎨' },
+                  { id: 'nature', label: 'Nature', icon: '🌳' },
+                  { id: 'tourist', label: 'Tourist', icon: '🎡' }
                 ].map(type => (
                   <div key={type.id} className="flex items-center space-x-2">
                     <Checkbox
@@ -421,25 +426,47 @@ export default function Settings({
               <span className="text-xs">GF HUNGRY</span>
             </Button>
 
-            <Button 
-              onClick={findRandomPOI}
-              className="h-20 flex flex-col items-center justify-center space-y-1"
-              variant="outline"
-              disabled={isLoading || !poiTypes?.length}
-            >
-              <span className="text-2xl">🎯</span>
-              <span className="text-xs">Random POI</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={findRandomPOI}
+                    className="h-20 flex flex-col items-center justify-center space-y-1 w-full"
+                    variant="outline"
+                    disabled={isLoading || !poiTypes?.length}
+                  >
+                    <span className="text-2xl">🎯</span>
+                    <span className="text-xs">Random POI</span>
+                  </Button>
+                </TooltipTrigger>
+                {!poiTypes?.length && (
+                  <TooltipContent side="bottom">
+                    <p>Select at least one POI category</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
 
-            <Button 
-              onClick={findPOIsInView}
-              className="h-20 flex flex-col items-center justify-center space-y-1"
-              variant="outline"
-              disabled={isLoading || !poiTypes?.length}
-            >
-              <span className="text-2xl">🔍</span>
-              <span className="text-xs">Find POIs in View</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={findPOIsInView}
+                    className="h-20 flex flex-col items-center justify-center space-y-1 w-full"
+                    variant="outline"
+                    disabled={isLoading || !poiTypes?.length}
+                  >
+                    <span className="text-2xl">🔍</span>
+                    <span className="text-xs">Find POIs in View</span>
+                  </Button>
+                </TooltipTrigger>
+                {!poiTypes?.length && (
+                  <TooltipContent side="bottom">
+                    <p>Select at least one POI category</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </CardContent>
