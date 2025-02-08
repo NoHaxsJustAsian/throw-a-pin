@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import {
   ScrollControls,
   Scroll,
@@ -12,6 +12,8 @@ import {
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { TextureLoader } from "three";
+const worldTexture = '/world-texture.jpg';
 
 /**
  * A custom hook to return a normalized scroll value (0 to 1)
@@ -54,9 +56,29 @@ function ScrollingGlobe() {
   const scrollDrei = useScroll();
   const normalizedScroll = useNormalizedScroll();
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(false);
+  const autoRotateSpeed = 0.5; // Adjust speed as needed
+  const lastScrollOffset = useRef(0);
+  const scrollTimeout = useRef<NodeJS.Timeout>();
   
   useFrame(() => {
     const offset = scrollDrei.offset;
+
+    // Check if we've reached the final section and scrolling has stopped
+    if (offset > 0.8 && offset !== lastScrollOffset.current) {
+      lastScrollOffset.current = offset;
+      
+      // Clear existing timeout
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+      
+      // Set new timeout for auto-rotation
+      scrollTimeout.current = setTimeout(() => {
+        setAutoRotate(true);
+      }, 500);
+    }
+
     if (globeRef.current && wireframeRef.current) {
       if (isTransitioning) {
         // Final animation state before transitioning to map
@@ -71,10 +93,16 @@ function ScrollingGlobe() {
         return;
       }
 
-      // Rotate a full turn as you scroll:
-      const rotationY = offset * Math.PI * 2;
-      globeRef.current.rotation.y = rotationY;
-      wireframeRef.current.rotation.y = rotationY;
+      // Apply either scroll-based or auto rotation
+      if (autoRotate) {
+        globeRef.current.rotation.y += autoRotateSpeed * 0.01;
+        wireframeRef.current.rotation.y = globeRef.current.rotation.y;
+      } else {
+        // Original rotation logic
+        const rotationY = offset * Math.PI * 2;
+        globeRef.current.rotation.y = rotationY;
+        wireframeRef.current.rotation.y = rotationY;
+      }
 
       // Complex position animation sequence
       let newX, newY, scale;
@@ -142,11 +170,37 @@ function ScrollingGlobe() {
     setIsTransitioning(true);
   };
 
+  // Load texture with error handling
+  const texture = useLoader(
+    TextureLoader, 
+    worldTexture,
+    undefined,
+    (error) => {
+      console.error('Error loading texture:', error);
+    }
+  );
+
+  // Fallback if texture fails to load
+  if (!texture) {
+    return (
+      <group>
+        <mesh ref={globeRef}>
+          <sphereGeometry args={[1, 32, 32]} />
+          <meshStandardMaterial color="#4a4a4a" />
+        </mesh>
+        <lineSegments ref={wireframeRef}>
+          <sphereGeometry args={[1.001, 32, 32]} />
+          <lineBasicMaterial color="#6e6e6e" transparent opacity={0.3} />
+        </lineSegments>
+      </group>
+    );
+  }
+
   return (
     <group>
       <mesh ref={globeRef}>
         <sphereGeometry args={[1, 32, 32]} />
-        <meshStandardMaterial color="#4a4a4a" />
+        <meshStandardMaterial map={texture} />
       </mesh>
       <lineSegments ref={wireframeRef}>
         <sphereGeometry args={[1.001, 32, 32]} />
