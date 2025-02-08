@@ -115,79 +115,6 @@ function ScrollingGlobe() {
   );
 }
 
-function FloatingPin() {
-  const normalizedScroll = useNormalizedScroll();
-  
-  // Pin animation states
-  const isInTitle = normalizedScroll < 0.15; // Pin starts in title
-  const isMovingToGlobe = normalizedScroll >= 0.15 && normalizedScroll < 0.25; // Pin moves to globe
-  const isOnGlobe = normalizedScroll >= 0.25 && normalizedScroll < 0.45; // Pin stays with globe
-  const isFadingOut = normalizedScroll >= 0.45 && normalizedScroll < 0.6; // Pin fades out
-  const isHidden = normalizedScroll >= 0.6 && normalizedScroll < 0.8; // Pin is hidden
-  const isReappearing = normalizedScroll >= 0.8; // Pin reappears for final section
-
-  let pinStyle: React.CSSProperties = {
-    position: 'fixed',
-    fontSize: '2rem',
-    transition: 'transform 0.3s ease-out',
-    pointerEvents: 'none',
-    zIndex: 50,
-  };
-
-  // Calculate the title pin position
-  const titlePinLeft = 'calc(10vw + 200px)'; // Adjust based on your title position
-  const titlePinTop = '50vh';
-
-  if (isMovingToGlobe) {
-    const moveProgress = (normalizedScroll - 0.15) / 0.1;
-    pinStyle = {
-      ...pinStyle,
-      top: titlePinTop,
-      left: titlePinLeft,
-      transform: `translate(-50%, -50%) translate(${moveProgress * (window.innerWidth/2 - parseFloat(titlePinLeft))}px, 0px)`,
-      opacity: 1,
-    };
-  } else if (isOnGlobe) {
-    pinStyle = {
-      ...pinStyle,
-      top: '50vh',
-      left: '50vw',
-      transform: 'translate(-50%, -50%)',
-      opacity: 1,
-    };
-  } else if (isFadingOut) {
-    const fadeProgress = (normalizedScroll - 0.45) / 0.15;
-    pinStyle = {
-      ...pinStyle,
-      top: '50vh',
-      left: '50vw',
-      transform: 'translate(-50%, -50%)',
-      opacity: 1 - fadeProgress,
-    };
-  } else if (isHidden) {
-    pinStyle = {
-      ...pinStyle,
-      opacity: 0,
-    };
-  } else if (isReappearing) {
-    const appearProgress = (normalizedScroll - 0.8) / 0.2;
-    pinStyle = {
-      ...pinStyle,
-      top: '50vh',
-      left: '30vw',
-      transform: 'translate(-50%, -50%)',
-      opacity: appearProgress,
-    };
-  }
-
-  // Only show the floating pin when we're starting to move or beyond
-  if (normalizedScroll < 0.15) return null;
-
-  return (
-    <div style={pinStyle}>📍</div>
-  );
-}
-
 /**
  * HeroCards
  *
@@ -252,8 +179,7 @@ function HeroCards() {
  */
 export default function HeroPage() {
   return (
-    <div className="h-[300vh] bg-background overflow-hidden relative">
-      <FloatingPin />
+    <div className="h-screen bg-background overflow-hidden relative">
       <Canvas 
         className="absolute top-0 left-0 w-full h-full" 
         camera={{ position: [0, 0, 5], fov: 50 }}
