@@ -1,49 +1,70 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { supabase } from "@/lib/supabase"
 
 type Place = {
-  id: number
-  country: string
-  city: string
-  longitude: number
-  latitude: number
+  id: number 
+  user_id: string
+  coordx: number
+  coordy: number
+  name?: string
+  address?: string
+  openingHours?: string
+  placeType?: string
 }
-
-type Attraction = {
-  id: number
-  attractionType: string
-  name: string
-  address: string
-}
-
-const initialAttractions: Attraction[] = [
-  { id: 5, attractionType: "Restaurant", name: "Le Meurice", address: "228 Rue de Rivoli, 75001 Paris, France" },
-  { id: 6, attractionType: "Park", name: "Jardin du Luxembourg", address: "Boulevard du Montparnasse, 75014 Paris, France" },
-  { id: 7, attractionType: "Museum", name: "Louvre", address: "Rue de Rivoli, 75001 Paris, France" }
-]
-
-const initialPlaces: Place[] = [
-  { id: 1, country: "France", city: "Paris", longitude: 2.3522, latitude: 48.8566 },
-  { id: 2, country: "Peru", city: "Machu Picchu", longitude: -72.545, latitude: -13.1631 },
-  { id: 3, country: "China", city: "Great Wall", longitude: 114.215, latitude: 40.4319 },
-  { id: 4, country: "India", city: "Taj Mahal", longitude: 78.0398, latitude: 27.175 },
-]
 
 export default function PlacesGrid() {
-  const [places, setPlaces] = useState<Place[]>(initialPlaces)
-  const [attractions, setAttractions] = useState<Attraction[]>(initialAttractions)
+  const [places, setPlaces] = useState<Place[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const TEST_UUID = '9e38267e-69e8-4683-9a26-6fba249a17c8'
+
+  useEffect(() => {
+    fetchPlaces()
+  }, [])
+
+  async function fetchPlaces() {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("places")
+        .select("*")
+        .eq("user_id", TEST_UUID)
   
-  const handleDeletePlace = (id: number) => {
-    setPlaces(places.filter((place) => place.id !== id))
+      if (error) throw error
+  
+      if (data) {
+        setPlaces(data)
+      }
+    } catch (error) {
+      console.error("Error fetching places:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleDeleteAttraction = (id: number) => {
-    setAttractions(attractions.filter((attraction) => attraction.id !== id))
+  const handleDeletePlace = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from("places")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+
+      setPlaces(places.filter((place) => place.id !== id))
+    } catch (error) {
+      console.error("Error deleting place:", error)
+    }
+  }
+
+  if (loading) {
+    return <div>Loading places...</div>
   }
 
   return (
@@ -51,41 +72,31 @@ export default function PlacesGrid() {
       {places.map((place) => (
         <Card key={place.id} className="relative group">
           <CardHeader>
-            <Badge variant="secondary" className="w-fit text-xs">Place</Badge>
-            <CardTitle>{place.city}</CardTitle>
+            <Badge variant="secondary" className="w-fit text-xs">
+              {place.placeType || 'Destination'}
+            </Badge>
+            <CardTitle>{place.name || 'Unnamed Location'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-semibold">{place.country}</p>
+            {place.address && (
+              <p className="text-sm text-muted-foreground mb-2">
+                {place.address}
+              </p>
+            )}
             <p className="text-sm text-muted-foreground">
-              Coordinates: {place.latitude}, {place.longitude}
+              Coordinates: {place.coordx}, {place.coordy}
             </p>
+            {place.openingHours && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Hours: {place.openingHours}
+              </p>
+            )}
             <Button
               variant="ghost"
               size="icon"
               className="absolute bottom-2 right-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
               onClick={() => handleDeletePlace(place.id)}
-              aria-label={`Delete ${place.city}`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
-
-      {attractions.map((attraction) => (
-        <Card key={attraction.id} className="relative group">
-          <CardHeader>
-            <Badge className="w-fit text-xs">{attraction.attractionType}</Badge>
-            <CardTitle>{attraction.name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{attraction.address}</p>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute bottom-2 right-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
-              onClick={() => handleDeleteAttraction(attraction.id)}
-              aria-label={`Delete ${attraction.name}`}
+              aria-label={`Delete ${place.name || 'place'}`}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -95,4 +106,3 @@ export default function PlacesGrid() {
     </div>
   )
 }
-
