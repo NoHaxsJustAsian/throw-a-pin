@@ -6,6 +6,7 @@ import Login from "@/pages/Login";
 import SavedLocations from "@/pages/SavedLocations";
 import MainComponent from "@/components/MainComponent";
 import History from "@/pages/History";
+import Places from "@/components/PlacesPage";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/saved" element={<SavedLocations />} />
             <Route path="/history" element={<History />} />
+            <Route path="/places" element={<Places />} />
           </Routes>
           <Toaster />
         </div>

@@ -22,9 +22,9 @@ type Attraction = {
 }
 
 const initialAttractions: Attraction[] = [
-  { id: 5, attractionType: "restaurant", name: "Le Meurice", address: "228 Rue de Rivoli, 75001 Paris, France" },
-  { id: 6, attractionType: "park", name: "Jardin du Luxembourg", address: "Boulevard du Montparnasse, 75014 Paris, France" },
-  { id: 7, attractionType: "museum", name: "Louvre", address: "Rue de Rivoli, 75001 Paris, France" }
+  { id: 5, attractionType: "Restaurant", name: "Le Meurice", address: "228 Rue de Rivoli, 75001 Paris, France" },
+  { id: 6, attractionType: "Park", name: "Jardin du Luxembourg", address: "Boulevard du Montparnasse, 75014 Paris, France" },
+  { id: 7, attractionType: "Museum", name: "Louvre", address: "Rue de Rivoli, 75001 Paris, France" }
 ]
 
 const initialPlaces: Place[] = [
@@ -51,23 +51,23 @@ export default function PlacesGrid() {
       {places.map((place) => (
         <Card key={place.id} className="relative group">
           <CardHeader>
-            <Badge variant="secondary">Place</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">Place</Badge>
             <CardTitle>{place.city}</CardTitle>
-            <Button
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => handleDeletePlace(place.id)}
-              aria-label={`Delete ${place.city}`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
           </CardHeader>
           <CardContent>
             <p className="font-semibold">{place.country}</p>
             <p className="text-sm text-muted-foreground">
               Coordinates: {place.latitude}, {place.longitude}
             </p>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute bottom-2 right-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => handleDeletePlace(place.id)}
+              aria-label={`Delete ${place.city}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </CardContent>
         </Card>
       ))}
@@ -75,20 +75,20 @@ export default function PlacesGrid() {
       {attractions.map((attraction) => (
         <Card key={attraction.id} className="relative group">
           <CardHeader>
-            <Badge>{attraction.attractionType}</Badge>
+            <Badge className="w-fit text-xs">{attraction.attractionType}</Badge>
             <CardTitle>{attraction.name}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">{attraction.address}</p>
             <Button
-              variant="destructive"
+              variant="ghost"
               size="icon"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute bottom-2 right-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
               onClick={() => handleDeleteAttraction(attraction.id)}
               aria-label={`Delete ${attraction.name}`}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{attraction.address}</p>
           </CardContent>
         </Card>
       ))}
