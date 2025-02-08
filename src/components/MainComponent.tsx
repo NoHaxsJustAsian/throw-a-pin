@@ -16,7 +16,7 @@ import { Country, State, City } from "country-state-city"
 import { searchNearby, getPlaceAddress } from "@/lib/overpass"
 import L from "leaflet"
 import { useTheme } from "next-themes"
-import Navbar from "./Navbar"
+import MapViewNavbar from "./MapViewNavbar"
 import Settings from "./Settings"
 
 const landGeoJSONTyped = landGeoJSON as FeatureCollection
@@ -722,7 +722,7 @@ export default function MainComponent() {
 
       {/* Navbar over the map */}
       <div className="absolute top-0 left-0 z-10 w-full">
-        <Navbar
+        <MapViewNavbar className="mt-1000"
           coordinates={coordinates}
           selectedRestaurant={selectedRestaurant}
           saveLocation={saveLocation}
