@@ -9,11 +9,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export type SavedLocation = {
-  id: string;
-  user_id: string;
-  latitude: number;
-  longitude: number;
-  name?: string;
-  created_at: string;
-}; 
+export type Place = {
+  id: number 
+  user_id: string
+  coordx: number
+  coordy: number
+  name?: string
+  address?: string
+  openingHours?: string
+  placeType?: string
+}

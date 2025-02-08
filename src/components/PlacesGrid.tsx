@@ -5,18 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { supabase } from "@/lib/supabase"
-
-type Place = {
-  id: number 
-  user_id: string
-  coordx: number
-  coordy: number
-  name?: string
-  address?: string
-  openingHours?: string
-  placeType?: string
-}
+import { supabase, Place } from "@/lib/supabase"
 
 export default function PlacesGrid() {
   const [places, setPlaces] = useState<Place[]>([])
