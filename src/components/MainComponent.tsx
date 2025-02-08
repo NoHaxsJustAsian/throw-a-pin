@@ -19,10 +19,16 @@ import { supabase } from "@/lib/supabase";
 import { useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Country, State, City } from 'country-state-city';
-import { searchNearby, searchPlaces, checkIfOpen, findRestaurantInArea, findRestaurantsNearMe, findRandomPOI, findPOI, findPOIInView, getPlaceAddress } from "@/lib/overpass";
+import { searchNearby, searchPlaces, checkIfOpen, findRestaurantInArea, findRestaurantsNearMe, findRandomPOI, findPOI, findPOIInView } from "@/lib/overpass";
 import L from 'leaflet';
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const landGeoJSONTyped = landGeoJSON as FeatureCollection;
 
@@ -45,65 +51,33 @@ const foodPin = L.divIcon({
 
 const getLocationIcon = (type: string): string => {
   const lowerType = type.toLowerCase();
-  
-  // Food & Drink icons
-  if (lowerType.includes('restaurant')) return '🍽️';
-  if (lowerType.includes('cafe')) return '☕';
-  if (lowerType.includes('bar') || lowerType.includes('pub')) return '🍺';
-  if (lowerType.includes('fast_food')) return '🍔';
-  if (lowerType.includes('ice_cream')) return '🍦';
-  if (lowerType.includes('bakery')) return '🥐';
-  if (lowerType.includes('food')) return '🍴';
-  
-  // Entertainment & Nightlife icons
-  if (lowerType.includes('cinema') || lowerType.includes('movie')) return '🎬';
-  if (lowerType.includes('theatre') || lowerType.includes('theater')) return '🎭';
-  if (lowerType.includes('casino')) return '🎰';
-  if (lowerType.includes('arcade')) return '🕹️';
-  if (lowerType.includes('nightclub') || lowerType.includes('night_club')) return '🎵';
-  if (lowerType.includes('karaoke')) return '🎤';
-  if (lowerType.includes('bowling')) return '🎳';
-  if (lowerType.includes('entertainment')) return '🎪';
-  
-  // Shopping & Markets icons
-  if (lowerType.includes('mall')) return '🛍️';
-  if (lowerType.includes('boutique')) return '👗';
-  if (lowerType.includes('market') || lowerType.includes('bazaar')) return '🏪';
-  if (lowerType.includes('bookstore') || lowerType.includes('book_shop')) return '📚';
-  if (lowerType.includes('gift')) return '🎁';
-  if (lowerType.includes('shop')) return '🛒';
-  
-  // Culture & Arts icons
-  if (lowerType.includes('museum')) return '🏛️';
-  if (lowerType.includes('art')) return '🎨';
-  if (lowerType.includes('gallery')) return '🖼️';
-  if (lowerType.includes('concert') || lowerType.includes('music_venue')) return '🎸';
-  
-  // Nature & Outdoors icons
-  if (lowerType.includes('park')) return '🌳';
-  if (lowerType.includes('beach')) return '🏖️';
-  if (lowerType.includes('garden')) return '🌸';
-  if (lowerType.includes('trail') || lowerType.includes('hiking')) return '🥾';
-  if (lowerType.includes('viewpoint') || lowerType.includes('observation')) return '🗻';
-  
-  // Sports & Recreation icons
-  if (lowerType.includes('sports')) return '⚽';
-  if (lowerType.includes('swimming')) return '🏊';
-  if (lowerType.includes('tennis')) return '🎾';
-  if (lowerType.includes('golf')) return '⛳';
-  if (lowerType.includes('climbing')) return '🧗';
-  if (lowerType.includes('yoga')) return '🧘';
-  if (lowerType.includes('gym') || lowerType.includes('fitness')) return '💪';
-  
-  // Tourist Attractions
-  if (lowerType.includes('landmark')) return '🗽';
-  if (lowerType.includes('castle')) return '🏰';
-  if (lowerType.includes('amusement') || lowerType.includes('theme_park')) return '🎡';
-  if (lowerType.includes('aquarium')) return '🐠';
-  if (lowerType.includes('zoo')) return '🦁';
-  
+
+  // Map specific types to main categories
+  if (lowerType.includes('restaurant') || lowerType.includes('cafe') || lowerType.includes('bakery') || lowerType.includes('food')) return '🍽️';
+  if (lowerType.includes('bar') || lowerType.includes('pub') || lowerType.includes('night_club') || lowerType.includes('brewery')) return '🍺';
+  if (lowerType.includes('movie') || lowerType.includes('theater') || lowerType.includes('arcade') || lowerType.includes('entertainment') || lowerType.includes('cinema')) return '🎭';
+  if (lowerType.includes('store') || lowerType.includes('mall') || lowerType.includes('shop') || lowerType.includes('shopping') || lowerType.includes('market')) return '🛍️';
+  if (lowerType.includes('museum') || lowerType.includes('gallery') || lowerType.includes('art') || lowerType.includes('cultural')) return '🎨';
+  if (lowerType.includes('park') || lowerType.includes('garden') || lowerType.includes('natural') || lowerType.includes('nature') || lowerType.includes('forest') || lowerType.includes('beach')) return '🌳';
+  if (lowerType.includes('tourist') || lowerType.includes('attraction') || lowerType.includes('landmark') || lowerType.includes('monument')) return '🎡';
+
   // Default pin for unknown types
   return '📍';
+};
+
+// Helper function to normalize location types to main categories
+const normalizeLocationType = (type: string): string => {
+  const lowerType = type.toLowerCase();
+
+  if (lowerType.includes('restaurant') || lowerType.includes('cafe') || lowerType.includes('bakery') || lowerType.includes('food')) return 'Food';
+  if (lowerType.includes('bar') || lowerType.includes('pub') || lowerType.includes('night_club') || lowerType.includes('brewery')) return 'Bars';
+  if (lowerType.includes('movie') || lowerType.includes('theater') || lowerType.includes('arcade') || lowerType.includes('entertainment') || lowerType.includes('cinema')) return 'Entertainment';
+  if (lowerType.includes('store') || lowerType.includes('mall') || lowerType.includes('shop') || lowerType.includes('shopping') || lowerType.includes('market')) return 'Shopping';
+  if (lowerType.includes('museum') || lowerType.includes('gallery') || lowerType.includes('art') || lowerType.includes('cultural')) return 'Arts';
+  if (lowerType.includes('park') || lowerType.includes('garden') || lowerType.includes('natural') || lowerType.includes('nature') || lowerType.includes('forest') || lowerType.includes('beach')) return 'Nature';
+  if (lowerType.includes('tourist') || lowerType.includes('attraction') || lowerType.includes('landmark') || lowerType.includes('monument')) return 'Tourist';
+
+  return type; // Return original if no match
 };
 
 // Add styles to head
@@ -247,6 +221,37 @@ const isLocationDuplicate = (
     Math.pow((newLocation.longitude - lastLocation.coordinates[1]) * 111000 * Math.cos(lastLocation.coordinates[0] * Math.PI / 180), 2)
   );
   return distance < 100;
+};
+
+const OpeningHours: React.FC<{ hours: string }> = ({ hours }) => {
+  return (
+    <TooltipProvider>
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1.5 cursor-help group">
+            <span className="text-base">🕒</span>
+            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-none">
+              Hours
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[300px] p-3">
+          <div className="space-y-2">
+            <div className="text-xs font-medium">
+              {checkIfOpen(hours) ? (
+                <span className="text-green-500">Open Now</span>
+              ) : (
+                <span className="text-red-500">Closed</span>
+              )}
+            </div>
+            <div className="border-t pt-2">
+              <p className="text-sm whitespace-pre-line">{hours}</p>
+            </div>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 };
 
 export default function MainComponent() {
@@ -1026,14 +1031,16 @@ export default function MainComponent() {
                           : "Points of Interest"}
                       </h3>
                       {isLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                          <span className="ml-3 text-sm text-muted-foreground">Finding places...</span>
+                        <div className="flex items-center justify-center h-[140px] border rounded-md bg-card">
+                          <div className="flex items-center gap-3">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <span className="text-sm text-muted-foreground">Finding places...</span>
+                          </div>
                         </div>
                       ) : selectedRestaurant ? (
                         <Card className="bg-card text-card-foreground border">
-                          <CardContent className="p-4 space-y-4">
-                            <div className="space-y-2">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="space-y-0.5">
                               <div className="flex justify-between items-start gap-2">
                                 <h2 className="text-base font-semibold">{selectedRestaurant.name}</h2>
                                 {selectedRestaurant.openingHours && (
@@ -1048,24 +1055,21 @@ export default function MainComponent() {
                                 )}
                               </div>
                               {selectedRestaurant.cuisine && (
-                                <p className="text-sm text-muted-foreground">Cuisine: {selectedRestaurant.cuisine}</p>
+                                <p className="text-xs text-muted-foreground">Cuisine: {selectedRestaurant.cuisine}</p>
                               )}
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-1">
                               <div className="flex items-start gap-2">
                                 <span className="text-base">📍</span>
-                                <p className="text-sm text-muted-foreground flex-1">
+                                <p className="text-xs text-muted-foreground flex-1">
                                   {selectedRestaurant.address}
                                 </p>
                               </div>
 
                               {selectedRestaurant.openingHours && (
                                 <div className="flex items-start gap-2">
-                                  <span className="text-base">🕒</span>
-                                  <div className="text-sm text-muted-foreground flex-1 whitespace-pre-line">
-                                    {selectedRestaurant.openingHours}
-                                  </div>
+                                  <OpeningHours hours={selectedRestaurant.openingHours} />
                                 </div>
                               )}
                             </div>
@@ -1106,8 +1110,8 @@ export default function MainComponent() {
                         </Card>
                       ) : selectedPOIs.length > 0 ? (
                         <Card className="bg-card text-card-foreground border">
-                          <CardContent className="p-4 space-y-4">
-                            <div className="space-y-2">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="space-y-0.5">
                               <div className="flex justify-between items-start gap-2">
                                 <h2 className="text-base font-semibold">{selectedPOIs[0].name}</h2>
                                 {selectedPOIs[0].openingHours && (
@@ -1121,23 +1125,20 @@ export default function MainComponent() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm text-muted-foreground">Type: {selectedPOIs[0].type}</p>
+                              <p className="text-xs text-muted-foreground">Type: {normalizeLocationType(selectedPOIs[0].type)}</p>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-1">
                               <div className="flex items-start gap-2">
                                 <span className="text-base">📍</span>
-                                <p className="text-sm text-muted-foreground flex-1">
+                                <p className="text-xs text-muted-foreground flex-1">
                                   {selectedPOIs[0].address}
                                 </p>
                               </div>
 
                               {selectedPOIs[0].openingHours && (
                                 <div className="flex items-start gap-2">
-                                  <span className="text-base">🕒</span>
-                                  <div className="text-sm text-muted-foreground flex-1 whitespace-pre-line">
-                                    {selectedPOIs[0].openingHours}
-                                  </div>
+                                  <OpeningHours hours={selectedPOIs[0].openingHours} />
                                 </div>
                               )}
                             </div>
@@ -1298,16 +1299,13 @@ export default function MainComponent() {
                               <div>
                                 <h3 className="font-bold mb-2">{poi.name}</h3>
                                 <p className="text-sm text-muted-foreground">
-                                  {poi.type}
+                                  {normalizeLocationType(poi.type)}
                                   {poi.address && (
                                     <span className="block mt-1">{poi.address}</span>
                                   )}
                                   {poi.openingHours && (
                                     <div className="mt-2 border-t pt-2">
-                                      <span className="block font-medium mb-1">Opening Hours:</span>
-                                      <span className="block whitespace-pre-line text-sm">
-                                        {poi.openingHours}
-                                      </span>
+                                      <OpeningHours hours={poi.openingHours} />
                                     </div>
                                   )}
                                 </p>
@@ -1441,18 +1439,11 @@ export default function MainComponent() {
                                 {location.poi.name}
                               </h3>
                               {location.poi.openingHours && (
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-xs font-medium",
-                                  checkIfOpen(location.poi.openingHours) 
-                                    ? "bg-green-500/20 text-green-500" 
-                                    : "bg-red-500/20 text-red-500"
-                                )}>
-                                  {checkIfOpen(location.poi.openingHours) ? "Open" : "Closed"}
-                                </span>
+                                <OpeningHours hours={location.poi.openingHours} />
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {location.poi.type}
+                              {normalizeLocationType(location.poi.type)}
                             </p>
                             <div className="flex items-center gap-1 mt-2">
                               <span className="text-sm">{getLocationIcon(location.poi.type)}</span>
