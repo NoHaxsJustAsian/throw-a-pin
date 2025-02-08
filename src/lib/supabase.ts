@@ -10,10 +10,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type SavedLocation = {
-  id: string;
-  user_id: string;
-  latitude: number;
-  longitude: number;
-  name?: string;
-  created_at: string;
-}; 
+  user_id: string; 
+  coordx: number; // X coordinate (latitude)
+  coordy: number; // Y coordinate (longitude)
+  name: string; // Name of the place
+  address: string; // Address of the place
+  hours: string; // Operating hours
+  attraction_type: string; // Type of attraction
+  created_at: string; // Timestamp when the location was saved
+};
