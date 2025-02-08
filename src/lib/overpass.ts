@@ -1,507 +1,391 @@
-function formatOpeningHours(hours: string): string {
-  if (!hours) return '';
+let googleMapsPromise: Promise<void> | null = null;
 
-  // Replace common abbreviations
-  const formatted = hours
-    .replace(/Mo/g, 'Monday')
-    .replace(/Tu/g, 'Tuesday')
-    .replace(/We/g, 'Wednesday')
-    .replace(/Th/g, 'Thursday')
-    .replace(/Fr/g, 'Friday')
-    .replace(/Sa/g, 'Saturday')
-    .replace(/Su/g, 'Sunday')
-    .replace(/,/g, ', ')
-    .replace(/;/g, '\n')
-    .replace(/\|\|/g, ' and ')
-    .replace(/\s*-\s*/g, '-');
+async function loadGoogleMaps() {
+  if (googleMapsPromise) return googleMapsPromise;
+  
+  googleMapsPromise = new Promise<void>((resolve, reject) => {
+    // Check if Google Maps is already loaded
+    if (window.google?.maps) {
+      resolve();
+      return;
+    }
 
-  // Split into lines and format each line
-  const lines = formatted.split('\n').map(line => {
-    // If line contains multiple days (e.g., "Monday-Friday")
-    if (line.includes('-')) {
-      const [days, times] = line.split(/\s+(?=[0-9])/);
-      return `${days}: ${times}`;
-    }
-    // If it's a single day
-    const parts = line.split(/\s+(?=[0-9])/);
-    if (parts.length === 2) {
-      return `${parts[0]}: ${parts[1]}`;
-    }
-    return line;
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = reject;
+    document.head.appendChild(script);
   });
 
-  return lines.join('\n');
+  return googleMapsPromise;
 }
 
-// Add new formatting function for amenity types
-function formatAmenityType(type: string | undefined): string {
-  if (!type) return 'Unknown';
-  
-  return type
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
-
-function formatCuisine(cuisine: string | undefined): string | undefined {
-  if (!cuisine) return undefined;
-  
-  return cuisine
-    .split(/[,;_]/) // Split by commas, semicolons, and underscores
-    .map(c => c.trim())
-    .filter(c => c.length > 0) // Remove empty strings
-    .map(c => c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()) // Proper capitalization
-    .join(', ');
-}
-
-interface OverpassResult {
-  id: number;
-  lat: number;
-  lon: number;
-  tags: {
-    name?: string;
-    amenity?: string;
-    leisure?: string;
-    tourism?: string;
-    shop?: string;
-    cuisine?: string;
-    phone?: string;
-    website?: string;
-    opening_hours?: string;
-    'contact:phone'?: string;
-    'contact:website'?: string;
-    'contact:email'?: string;
-    'social:instagram'?: string;
-    image?: string;
-    [key: string]: string | undefined;
-  };
-}
-
-interface OverpassResponse {
-  elements: OverpassResult[];
-}
-
-async function getFormattedAddress(lat: number, lon: number): Promise<string> {
-  try {
-    const response = await fetch(
-      `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lon}&key=${import.meta.env.VITE_OPENCAGE_API_KEY}&language=en`
-    );
-    const data = await response.json();
-    
-    if (data.results && data.results.length > 0) {
-      const result = data.results[0];
-      return result.formatted;
-    }
-    return 'Address not available';
-  } catch (error) {
-    console.error('Error fetching address:', error);
-    return 'Address not available';
+// Ensure TypeScript knows about the google object
+declare global {
+  interface Window {
+    google: typeof google;
   }
 }
 
-export interface Place {
-  id: number;
-  name: string;
-  latitude: number;
-  longitude: number;
-  type: string;
-  website?: string;
-  cuisine?: string;
-  openingHours?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-}
-
-export const searchNearby = async (
-  lat: number,
-  lon: number,
-  radius: number = 1000,
-  amenities: string[] = ['restaurant', 'cafe', 'bar', 'park'],
-  maxResults: number = 20
-): Promise<Place[]> => {
-  // Make the query more specific to actual food establishments
-  const query = `
-    [out:json][timeout:10];
-    (
-      // Restaurants and food places with names
-      nwr[name][amenity~"^(restaurant|cafe|coffee_shop|fast_food|bar|pub|food_court|ice_cream)$"](around:${radius},${lat},${lon});
-      // Places with cuisine tag but only if they are food-related
-      nwr[name][cuisine][amenity~"^(restaurant|cafe|coffee_shop|fast_food|bar|pub|food_court)$"](around:${radius},${lat},${lon});
-    );
-    out body qt;
-    >;
-    out skel qt;
-  `;
-
-  try {
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: OverpassResponse = await response.json();
-    
-    // Filter and sort results
-    const places = data.elements
-      .filter(element => {
-        // Must have a name and be a food establishment
-        if (!element.tags?.name) return false;
-        
-        // Check if it's actually a food establishment
-        const isFood = element.tags.amenity === 'restaurant' ||
-                      element.tags.amenity === 'cafe' ||
-                      element.tags.amenity === 'coffee_shop' ||
-                      element.tags.amenity === 'fast_food' ||
-                      element.tags.amenity === 'bar' ||
-                      element.tags.amenity === 'pub' ||
-                      element.tags.amenity === 'food_court' ||
-                      element.tags.amenity === 'ice_cream';
-                      
-        // Must have either a valid food amenity or a cuisine tag
-        return isFood || (element.tags.cuisine && element.tags.amenity);
-      })
-      .sort((a, b) => {
-        const distA = Math.pow(a.lat - lat, 2) + Math.pow(a.lon - lon, 2);
-        const distB = Math.pow(b.lat - lat, 2) + Math.pow(b.lon - lon, 2);
-        return distA - distB;
-      })
-      .slice(0, maxResults)
-      .map(element => {
-        const tags = element.tags;
-        return {
-          id: element.id,
-          name: tags.name || 'Unnamed Location',
-          latitude: element.lat,
-          longitude: element.lon,
-          type: formatAmenityType(tags.amenity) || 'Food',
-          website: tags.website || tags['contact:website'],
-          cuisine: formatCuisine(tags.cuisine),
-          openingHours: tags.opening_hours ? formatOpeningHours(tags.opening_hours) : undefined,
-        };
-      });
-
-    return places;
-  } catch (error) {
-    console.error('Error fetching from Overpass:', error);
-    throw error;
-  }
-};
-
-// Function to get address for a specific place when needed
-export const getPlaceAddress = async (place: Place): Promise<string> => {
-  // First try to get address from OpenStreetMap
-  const query = `
-    [out:json];
-    (
-      nwr(${place.id});
-    );
-    out body;
-  `;
-
-  try {
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-
-    if (response.ok) {
-      const data: OverpassResponse = await response.json();
-      const element = data.elements[0];
-      
-      if (element?.tags) {
-        const tags = element.tags;
-        
-        // Try to get full address first
-        if (tags['addr:full']) {
-          return tags['addr:full'];
-        }
-
-        // Try to build address from components
-        const addressParts = [];
-        
-        // Try street address
-        if (tags['addr:housenumber'] && tags['addr:street']) {
-          addressParts.push(`${tags['addr:housenumber']} ${tags['addr:street']}`);
-        } else if (tags['addr:street']) {
-          addressParts.push(tags['addr:street']);
-        }
-        
-        // Add neighborhood/suburb if available
-        if (tags['addr:suburb'] || tags['addr:neighborhood']) {
-          addressParts.push(tags['addr:suburb'] || tags['addr:neighborhood']);
-        }
-        
-        // Add city
-        if (tags['addr:city']) {
-          addressParts.push(tags['addr:city']);
-        }
-        
-        // Add state/province
-        if (tags['addr:state']) {
-          addressParts.push(tags['addr:state']);
-        }
-        
-        // Add postcode
-        if (tags['addr:postcode']) {
-          addressParts.push(tags['addr:postcode']);
-        }
-
-        if (addressParts.length > 0) {
-          return addressParts.join(', ');
-        }
-      }
-    }
-
-    // Only use OpenCage as last resort for the displayed place
-    console.log('Falling back to OpenCage for address lookup');
-    return getFormattedAddress(place.latitude, place.longitude);
-  } catch (error) {
-    console.error('Error fetching address:', error);
-    return 'Address not available';
-  }
-};
-
-// Helper function to search for specific types of places
-export const searchPlaces = async (
-  lat: number,
-  lon: number,
-  type: 'food' | 'entertainment' | 'shopping' | 'tourism',
-  radius: number = 1000
-) => {
-  const typeQueries = {
-    food: ['restaurant', 'cafe', 'bar', 'fast_food', 'pub', 'food_court'],
-    entertainment: ['cinema', 'theatre', 'nightclub', 'arts_centre', 'casino'],
-    shopping: ['mall', 'supermarket', 'marketplace', 'department_store'],
-    tourism: ['museum', 'gallery', 'attraction', 'viewpoint', 'theme_park'],
-  };
-
-  return searchNearby(lat, lon, radius, typeQueries[type]);
-};
-
-// Function to get place details
-export const getPlaceDetails = async (
-  lat: number,
-  lon: number,
-  radius: number = 100 // Smaller radius for exact matches
-) => {
-  const query = `
-    [out:json][timeout:25];
-    (
-      node(around:${radius},${lat},${lon});
-      way(around:${radius},${lat},${lon});
-      relation(around:${radius},${lat},${lon});
-    );
-    out body;
-    >;
-    out skel qt;
-  `;
-
-  try {
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: query,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch place details');
-    }
-
-    const data: OverpassResponse = await response.json();
-    const place = data.elements.find(element => element.tags && element.tags.name);
-
-    if (!place) {
-      return null;
-    }
-
-    return {
-      id: place.id,
-      name: place.tags.name || 'Unnamed Location',
-      latitude: place.lat,
-      longitude: place.lon,
-      type: place.tags.amenity || place.tags.leisure || place.tags.tourism || place.tags.shop,
-      tags: place.tags,
-    };
-  } catch (error) {
-    console.error('Error fetching place details:', error);
-    throw error;
-  }
-};
-
-export interface Bounds {
-  north: number;
-  south: number;
-  east: number;
-  west: number;
-}
-
-export const findPOIInView = async (bounds: Bounds): Promise<Place[]> => {
-  const query = `
-    [out:json][timeout:10];
-    (
-      // Food establishments
-      nwr[name][amenity~"^(restaurant|cafe|coffee_shop|fast_food|bar|pub|food_court)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
-      // Entertainment venues
-      nwr[name][amenity~"^(cinema|theatre|nightclub|arts_centre|casino)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
-      // Shopping places
-      nwr[name][shop~"^(mall|supermarket|department_store)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
-      nwr[name][amenity="marketplace"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
-      // Tourist attractions
-      nwr[name][tourism~"^(museum|gallery|attraction|viewpoint|theme_park)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
-    );
-    out body qt;
-    >;
-    out skel qt;
-  `;
-
-  try {
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: OverpassResponse = await response.json();
-    
-    // Filter and map results
-    const places = data.elements
-      .filter(element => element.tags?.name)
-      .map(element => {
-        const tags = element.tags;
-        return {
-          id: element.id,
-          name: tags.name || 'Unnamed Location',
-          latitude: element.lat,
-          longitude: element.lon,
-          type: formatAmenityType(tags.amenity || tags.tourism || tags.shop || tags.leisure || 'Unknown'),
-          website: tags.website || tags['contact:website'],
-          cuisine: formatCuisine(tags.cuisine),
-          openingHours: tags.opening_hours ? formatOpeningHours(tags.opening_hours) : undefined,
-          phone: tags.phone || tags['contact:phone'],
-          email: tags['contact:email'],
-          instagram: tags['social:instagram'],
-          description: tags.description || tags.note || tags.history || '',
-          wheelchair: tags.wheelchair,
-          outdoor_seating: tags.outdoor_seating
-        };
-      });
-
-    return places;
-  } catch (error) {
-    console.error('Error fetching from Overpass:', error);
-    throw error;
-  }
-};
-
-export const checkIfOpen = (hours: string | undefined): boolean => {
-  if (!hours) return false;
+export function checkIfOpen(openingHours: string | undefined): boolean {
+  if (!openingHours) return false;
   
   const now = new Date();
-  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
-  const time = now.getHours() * 100 + now.getMinutes();
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const currentDay = days[now.getDay()];
+  const currentTime = now.getHours() * 100 + now.getMinutes();
 
-  const todayHours = hours.split('\n').find(line => line.startsWith(day));
-  if (!todayHours) return false;
+  const dayHours = openingHours.split('\n').find(line => line.startsWith(currentDay));
+  if (!dayHours) return false;
 
-  const timeRanges = todayHours.split(': ')[1];
+  const timeRanges = dayHours.split(': ')[1];
   if (!timeRanges) return false;
 
-  return timeRanges.split(' and ').some(range => {
-    const [start, end] = range.split('-').map(t => {
-      const [hours, minutes = '00'] = t.trim().split(':');
-      return parseInt(hours) * 100 + parseInt(minutes);
+  return timeRanges.split(', ').some(range => {
+    const [start, end] = range.split('-').map(time => {
+      const [hours, minutes] = time.trim().split(':').map(Number);
+      return hours * 100 + (minutes || 0);
     });
-    return time >= start && time <= end;
+    return currentTime >= start && currentTime <= end;
   });
-};
-
-export interface FindPOIOptions {
-  searchPrecision?: 'high' | 'medium' | 'low';
-  searchRadius?: number;
-  isRestaurant?: boolean;
-  poiTypes?: string[];
 }
 
-export const findPOI = async (
-  coordinates: [number, number] | GeolocationPosition | Bounds,
-  options: FindPOIOptions = {}
-): Promise<Place | null> => {
-  const {
-    searchPrecision = 'medium',
-    searchRadius: customSearchRadius,
-    isRestaurant = false,
-    poiTypes = []
-  } = options;
-
-  let searchLat: number;
-  let searchLng: number;
-  let baseRadius: number;
-
-  // Handle different coordinate input types
-  if ('coords' in coordinates) {
-    // GeolocationPosition
-    searchLat = coordinates.coords.latitude;
-    searchLng = coordinates.coords.longitude;
-    baseRadius = customSearchRadius || 5000; // Default 5km for geolocation
-  } else if ('north' in coordinates) {
-    // Bounds
-    searchLat = (coordinates.north + coordinates.south) / 2;
-    searchLng = (coordinates.east + coordinates.west) / 2;
-    
-    // Calculate radius based on bounds
-    const latDistance = (coordinates.north - coordinates.south) * 111000;
-    const lngDistance = (coordinates.east - coordinates.west) * 111000 * Math.cos(searchLat * Math.PI / 180);
-    baseRadius = Math.min(Math.max(Math.max(latDistance, lngDistance) / 2, 1000), 50000);
-  } else {
-    // LatLngTuple
-    [searchLat, searchLng] = coordinates;
-    baseRadius = customSearchRadius || 10000; // Default 10km for direct coordinates
+function formatOpeningHours(hours: string): string {
+    if (!hours) return '';
+  
+    // Replace common abbreviations
+    const formatted = hours
+      .replace(/Mo/g, 'Monday')
+      .replace(/Tu/g, 'Tuesday')
+      .replace(/We/g, 'Wednesday')
+      .replace(/Th/g, 'Thursday')
+      .replace(/Fr/g, 'Friday')
+      .replace(/Sa/g, 'Saturday')
+      .replace(/Su/g, 'Sunday')
+      .replace(/,/g, ', ')
+      .replace(/;/g, '\n')
+      .replace(/\|\|/g, ' and ')
+      .replace(/\s*-\s*/g, '-');
+  
+    // Split into lines and format each line
+    const lines = formatted.split('\n').map(line => {
+      // If line contains multiple days (e.g., "Monday-Friday")
+      if (line.includes('-')) {
+        const [days, times] = line.split(/\s+(?=[0-9])/);
+        return `${days}: ${times}`;
+      }
+      // If it's a single day
+      const parts = line.split(/\s+(?=[0-9])/);
+      if (parts.length === 2) {
+        return `${parts[0]}: ${parts[1]}`;
+      }
+      return line;
+    });
+  
+    return lines.join('\n');
   }
+  
+  // Format amenity type by splitting underscores and capitalizing words.
+  function formatAmenityType(type: string | undefined): string {
+    if (!type) return 'Unknown';
+    
+    return type
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+  
+  function formatCuisine(cuisine: string | undefined): string | undefined {
+    if (!cuisine) return undefined;
+    
+    return cuisine
+      .split(/[,;_]/) // Split by commas, semicolons, and underscores
+      .map(c => c.trim())
+      .filter(c => c.length > 0) // Remove empty strings
+      .map(c => c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()) // Proper capitalization
+      .join(', ');
+  }
+  
+  // --- Interfaces ---
+  
+  export interface Place {
+    id: string; // Google Place IDs are strings
+    name: string;
+    latitude: number;
+    longitude: number;
+    type: string;
+    website?: string;
+    cuisine?: string;
+    openingHours?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  }
+  
+  export interface Bounds {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  }
+  
+  // --- Google Places API functions ---
+  
+  /**
+   * Uses the Google Places Nearby Search endpoint to find places matching
+   * one or more types near the specified coordinates.
+   */
+  export const searchNearby = async (
+    lat: number,
+    lon: number,
+    radius: number = 1000,
+    types: string[] = ['restaurant', 'cafe', 'bar', 'park'],
+    maxResults: number = 20
+  ): Promise<Place[]> => {
+    // Ensure Google Maps is loaded
+    await loadGoogleMaps();
+    
+    // Create a promise that resolves when the places service returns results
+    return new Promise((resolve, reject) => {
+      const location = new google.maps.LatLng(lat, lon);
+      
+      // Create a temporary div for the map (Places API requires a map instance)
+      const mapDiv = document.createElement('div');
+      const map = new google.maps.Map(mapDiv, {
+        center: location,
+        zoom: 12  // Changed from 15 to 12 for a more zoomed out view
+      });
 
-  // Configure search parameters based on precision
-  const searchConfig = {
-    high: { maxResults: 10, radiusMultiplier: 0.5 },
-    medium: { maxResults: 30, radiusMultiplier: 1.5 },
-    low: { maxResults: 500, radiusMultiplier: 2.5 }
-  }[searchPrecision];
+      const service = new google.maps.places.PlacesService(map);
+      let allPlaces: Place[] = [];
+      let completedRequests = 0;
+      let totalRequests = types.length;
+      let successfulRequests = 0;
 
-  const searchRadius = baseRadius * searchConfig.radiusMultiplier;
+      console.log(`Searching for types:`, types);
 
-  // Define search tags based on type
-  const restaurantTags = [
-    'restaurant',
-    'fast_food',
-    'cafe',
-    'pub',
-    'bar',
-    'food_court',
-    'biergarten',
-    'ice_cream',
-    'food',
-    'deli'
-  ];
+      // For each type, make a separate Places API request
+      types.forEach(type => {
+        const request = {
+          location,
+          radius,
+          type
+        };
 
-  try {
+        service.nearbySearch(request, (results, status) => {
+          completedRequests++;
+          console.log(`Search for type ${type} returned status: ${status}`);
+
+          if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+            successfulRequests++;
+            // Map Google Place results to our Place interface
+            const places: Place[] = results.map(result => ({
+              id: result.place_id || '',
+              name: result.name || 'Unknown',
+              latitude: result.geometry?.location?.lat() || lat,
+              longitude: result.geometry?.location?.lng() || lon,
+              type: result.types?.length ? formatAmenityType(result.types[0]) : formatAmenityType(type),
+              website: undefined,
+              cuisine: undefined,
+              openingHours: undefined, // We'll need a separate getDetails call for this
+              address: result.vicinity || undefined,
+              phone: undefined,
+              email: undefined,
+            }));
+            allPlaces = allPlaces.concat(places);
+            console.log(`Found ${places.length} places for type ${type}`);
+          } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+            console.log(`No results found for type ${type}`);
+          } else if (status !== google.maps.places.PlacesServiceStatus.OK) {
+            console.error(`Error searching for type ${type}: ${status}`);
+          }
+
+          // If all requests are complete, process and return results
+          if (completedRequests === totalRequests) {
+            if (allPlaces.length === 0) {
+              console.log('No places found for any type');
+              resolve([]);
+              return;
+            }
+
+            console.log(`Found total of ${allPlaces.length} places before deduplication`);
+
+            // Remove duplicates based on place ID
+            const uniquePlaces = new Map<string, Place>();
+            for (const place of allPlaces) {
+              uniquePlaces.set(place.id, place);
+            }
+            const uniqueArray = Array.from(uniquePlaces.values());
+            console.log(`Found ${uniqueArray.length} unique places`);
+
+            // Sort by distance from search location
+            uniqueArray.sort((a, b) => {
+              const distA = Math.pow(a.latitude - lat, 2) + Math.pow(a.longitude - lon, 2);
+              const distB = Math.pow(b.latitude - lat, 2) + Math.pow(b.longitude - lon, 2);
+              return distA - distB;
+            });
+
+            // Return all unique places, up to maxResults
+            const finalResults = uniqueArray.slice(0, maxResults);
+            console.log(`Returning ${finalResults.length} places`);
+            resolve(finalResults);
+          }
+        });
+      });
+    });
+  };
+  
+  /**
+   * Uses the Google Place Details API to fetch the full formatted address.
+   */
+  export const getPlaceAddress = async (place: Place): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // Create a temporary div for the map
+      const mapDiv = document.createElement('div');
+      const map = new google.maps.Map(mapDiv, {
+        center: new google.maps.LatLng(place.latitude, place.longitude),
+        zoom: 15
+      });
+
+      const service = new google.maps.places.PlacesService(map);
+      
+      service.getDetails({
+        placeId: place.id,
+        fields: ['formatted_address', 'opening_hours']
+      }, (result, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && result) {
+          // Update the place's opening hours if available
+          if (result.opening_hours?.weekday_text) {
+            place.openingHours = result.opening_hours.weekday_text.join('\n');
+          }
+          resolve(result.formatted_address || 'Address not available');
+        } else {
+          resolve('Address not available');
+        }
+      });
+    });
+  };
+  
+  /**
+   * Searches for places matching a specific category (food, entertainment, shopping, or tourism)
+   * using type mappings for the Google Places API.
+   */
+  export const searchPlaces = async (
+    lat: number,
+    lon: number,
+    type: 'food' | 'entertainment' | 'shopping' | 'tourism',
+    radius: number = 1000
+  ): Promise<Place[]> => {
+    const typeMapping: { [key in ValidPOIType]: string[] } = {
+      food: ['restaurant', 'cafe', 'bar', 'meal_takeaway', 'bakery'],
+      entertainment: ['movie_theater', 'night_club', 'amusement_park'],
+      shopping: ['shopping_mall', 'store', 'department_store'],
+      tourism: ['museum', 'art_gallery', 'tourist_attraction', 'park'],
+    };
+  
+    const types = typeMapping[type];
+    return searchNearby(lat, lon, radius, types);
+  };
+  
+  /**
+   * Fetches additional details for a place via the Google Place Details API.
+   * (This can be expanded to request more fields as needed.)
+   */
+  export const getPlaceDetails = async (placeId: string): Promise<any> => {
+    const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}`;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch place details');
+      }
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+      throw error;
+    }
+  };
+  
+  // --- POI search functions ---
+  
+  export type ValidPOIType = "tourism" | "food" | "entertainment" | "shopping";
+  
+  export const isValidPOIType = (type: string): type is ValidPOIType => {
+    return ["tourism", "food", "entertainment", "shopping"].includes(type);
+  };
+  
+  /**
+   * Searches for a single POI (or restaurant) based on the provided coordinates (or bounds)
+   * and options. It uses the Google Places API to fetch nearby businesses.
+   */
+  export interface FindPOIOptions {
+    searchPrecision?: 'high' | 'medium' | 'low';
+    searchRadius?: number;
+    isRestaurant?: boolean;
+    poiTypes?: string[];
+  }
+  
+  export const findPOI = async (
+    coordinates: [number, number] | GeolocationPosition | Bounds,
+    options: FindPOIOptions = {}
+  ): Promise<Place | null> => {
+    const {
+      searchPrecision = 'medium',
+      searchRadius: customSearchRadius,
+      isRestaurant = false,
+      poiTypes = []
+    } = options;
+  
+    let searchLat: number;
+    let searchLng: number;
+    let baseRadius: number;
+  
+    // Handle different coordinate input types
+    if ('coords' in coordinates) {
+      // GeolocationPosition
+      searchLat = coordinates.coords.latitude;
+      searchLng = coordinates.coords.longitude;
+      baseRadius = customSearchRadius || 5000; // Default 5km for geolocation
+    } else if ('north' in coordinates) {
+      // Bounds
+      searchLat = (coordinates.north + coordinates.south) / 2;
+      searchLng = (coordinates.east + coordinates.west) / 2;
+      
+      // Calculate approximate radius based on bounds
+      const latDistance = (coordinates.north - coordinates.south) * 111000;
+      const lngDistance = (coordinates.east - coordinates.west) * 111000 * Math.cos(searchLat * Math.PI / 180);
+      baseRadius = Math.min(Math.max(Math.max(latDistance, lngDistance) / 2, 1000), 50000);
+    } else {
+      // [latitude, longitude]
+      [searchLat, searchLng] = coordinates;
+      baseRadius = customSearchRadius || 10000; // Default 10km for direct coordinates
+    }
+  
+    // Configure search parameters based on precision
+    const searchConfig = {
+      high: { maxResults: 10, radiusMultiplier: 0.5 },
+      medium: { maxResults: 30, radiusMultiplier: 1.5 },
+      low: { maxResults: 500, radiusMultiplier: 2.5 }
+    }[searchPrecision];
+  
+    const searchRadius = baseRadius * searchConfig.radiusMultiplier;
+  
+    // Define search tags based on type.
+    const restaurantTags = [
+      'restaurant',
+      'cafe',
+      'bar',
+      'meal_takeaway',
+      'bakery'
+    ];
+  
     let results: Place[] = [];
-
+  
     if (isRestaurant) {
-      // Search for restaurants
+      // Search for restaurants using the restaurantTags
       results = await searchNearby(
         searchLat,
         searchLng,
@@ -510,90 +394,172 @@ export const findPOI = async (
         searchConfig.maxResults
       );
     } else if (poiTypes.length > 0) {
-      // Search for POIs in all selected categories
-      const allPOIs = await Promise.all(
-        poiTypes.filter(isValidPOIType).map(type => 
-          searchPlaces(
-            searchLat,
-            searchLng,
-            type as ValidPOIType,
-            searchRadius
-          )
-        )
-      );
-      results = allPOIs.flat();
+      // Search for POIs in selected categories. Map our internal types to Google types.
+      const typeMapping: { [key in ValidPOIType]: string[] } = {
+        food: ['restaurant', 'cafe', 'bar', 'meal_takeaway', 'bakery'],
+        entertainment: ['movie_theater', 'night_club', 'amusement_park'],
+        shopping: ['shopping_mall', 'store', 'department_store'],
+        tourism: ['museum', 'art_gallery', 'tourist_attraction', 'park']
+      };
+  
+      const amenities: string[] = [];
+      poiTypes.forEach(type => {
+        if (typeMapping[type as ValidPOIType]) {
+          amenities.push(...typeMapping[type as ValidPOIType]);
+        }
+      });
+      results = await searchNearby(searchLat, searchLng, searchRadius, amenities, searchConfig.maxResults);
     }
-
+  
     if (results.length === 0) {
       return null;
     }
-
-    // Sort by distance from search coordinates
-    const sortedResults = results.sort((a, b) => {
+  
+    // Sort by distance from the search coordinates
+    results.sort((a, b) => {
       const distA = Math.pow(a.latitude - searchLat, 2) + Math.pow(a.longitude - searchLng, 2);
       const distB = Math.pow(b.latitude - searchLat, 2) + Math.pow(b.longitude - searchLng, 2);
       return distA - distB;
     });
-
-    // Select either the closest or a random result based on the use case
-    const selectedPlace = isRestaurant || poiTypes.length === 0
-      ? sortedResults[Math.floor(Math.random() * Math.min(sortedResults.length, 10))] // Random from top 10 for restaurants
-      : sortedResults[0]; // Closest for POIs
-
-    // Fetch the address for the selected place
+  
+    // For restaurants or if no POI type is specified, pick a random one from the top 10; otherwise choose the closest.
+    const selectedPlace = (isRestaurant || poiTypes.length === 0)
+      ? results[Math.floor(Math.random() * Math.min(results.length, 10))]
+      : results[0];
+  
+    // Fetch a full address using the Place Details API
     const address = await getPlaceAddress(selectedPlace);
     return { ...selectedPlace, address };
-  } catch (error) {
-    console.error('Error finding place:', error);
-    throw error;
-  }
-};
+  };
+  
+  /**
+   * Helper function to search for a POI within a map viewport (bounds).
+   * Since Google's Nearby Search does not directly support bounds, we approximate by computing
+   * the center and a radius that covers the bounds.
+   */
+  export const findPOIInView = async (bounds: Bounds, poiTypes: string[] = []): Promise<Place | null> => {
+    // Ensure Google Maps is loaded first
+    await loadGoogleMaps();
 
-// Helper function to find a random POI
-export const findRandomPOI = async (
-  mapBounds: Bounds,
-  poiTypes: string[],
-): Promise<Place | null> => {
-  return findPOI(mapBounds, {
-    poiTypes,
-    searchPrecision: 'medium'
-  });
-};
+    // Generate random coordinates within the current bounds
+    const generateRandomCoordinatesInView = (): [number, number] => {
+      const lat = bounds.south + Math.random() * (bounds.north - bounds.south);
+      const lng = bounds.west + Math.random() * (bounds.east - bounds.west);
+      return [lat, lng];
+    };
 
-// Helper function to find the closest POI
-export const findClosestPOI = async (
-  coordinates: [number, number],
-  poiTypes: string[],
-): Promise<Place | null> => {
-  return findPOI(coordinates, {
-    poiTypes,
-    searchPrecision: 'high'
-  });
-};
+    let lastError: Error | null = null;
 
-// Helper function to find restaurants near me
-export const findRestaurantsNearMe = async (
-  position: GeolocationPosition,
-): Promise<Place | null> => {
-  return findPOI(position, {
-    isRestaurant: true,
-    searchPrecision: 'medium'
-  });
-};
+    // Try up to 5 times to find POIs
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        const coordinates = generateRandomCoordinatesInView();
+        
+        // Calculate search radius based on view bounds (in meters)
+        const latDistance = (bounds.north - bounds.south) * 111000;
+        const lngDistance = (bounds.east - bounds.west) * 111000 * Math.cos(coordinates[0] * Math.PI / 180);
+        const radius = Math.min(Math.max(Math.max(latDistance, lngDistance) / 2, 1000), 50000);
 
-// Helper function to find restaurants in area
-export const findRestaurantInArea = async (
-  mapBounds: Bounds,
-  searchPrecision: 'high' | 'medium' | 'low' = 'medium'
-): Promise<Place | null> => {
-  return findPOI(mapBounds, {
-    isRestaurant: true,
-    searchPrecision
-  });
-};
+        // Map the POI types to Google Places types
+        const typeMapping: { [key in ValidPOIType]: string[] } = {
+          food: ['restaurant', 'cafe', 'bar', 'meal_takeaway', 'bakery'],
+          entertainment: ['movie_theater', 'night_club', 'amusement_park', 'casino'],
+          shopping: ['shopping_mall', 'store', 'department_store', 'supermarket'],
+          tourism: ['museum', 'art_gallery', 'tourist_attraction', 'park', 'church']
+        };
 
-export type ValidPOIType = "tourism" | "food" | "entertainment" | "shopping";
+        // Get all relevant place types based on selected POI types
+        const placeTypes = poiTypes.length > 0
+          ? poiTypes.flatMap(type => typeMapping[type as ValidPOIType] || [])
+          : Object.values(typeMapping).flat();
 
-export const isValidPOIType = (type: string): type is ValidPOIType => {
-  return ["tourism", "food", "entertainment", "shopping"].includes(type);
-}; 
+        // Search with a higher maxResults to increase chances of finding something
+        const results = await searchNearby(coordinates[0], coordinates[1], radius, placeTypes, 20);
+        
+        if (results && results.length > 0) {
+          console.log(`Found POIs on attempt ${attempt}`);
+          // Pick a random result from the top 5 closest places
+          const topPlaces = results.slice(0, 5);
+          const selectedPlace = topPlaces[Math.floor(Math.random() * topPlaces.length)];
+          
+          // Get the address for the selected place
+          const address = await getPlaceAddress(selectedPlace);
+          return { ...selectedPlace, address };
+        }
+        
+        console.log(`Attempt ${attempt}: No POIs found at coordinates ${coordinates}, trying again...`);
+      } catch (error) {
+        console.log(`Attempt ${attempt} failed:`, error);
+        lastError = error as Error;
+      }
+    }
+
+    // If we get here, all attempts failed
+    console.error('No places found in the current view after multiple attempts');
+    return null;
+  };
+  
+  // --- Additional helper functions ---
+  
+  export const findRandomPOI = async (
+    mapBounds: Bounds,
+    poiTypes: string[],
+  ): Promise<Place | null> => {
+    // Generate random coordinates anywhere in the world
+    const generateRandomCoordinates = (): [number, number] => {
+      const lat = Math.random() * 180 - 90;  // -90 to 90
+      const lng = Math.random() * 360 - 180; // -180 to 180
+      return [lat, lng];
+    };
+
+    // Try up to 5 times to find a POI
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const coordinates = generateRandomCoordinates();
+      try {
+        const result = await findPOI(coordinates, {
+          poiTypes,
+          searchPrecision: 'low', // Use low precision to cast a wider net
+          searchRadius: 50000 // 50km radius to increase chances of finding something
+        });
+        
+        if (result) {
+          return result;
+        }
+        console.log(`Attempt ${attempt + 1}: No POIs found at coordinates ${coordinates}, trying again...`);
+      } catch (error) {
+        console.log(`Attempt ${attempt + 1} failed:`, error);
+      }
+    }
+
+    return null;
+  };
+  
+  export const findClosestPOI = async (
+    coordinates: [number, number],
+    poiTypes: string[],
+  ): Promise<Place | null> => {
+    return findPOI(coordinates, {
+      poiTypes,
+      searchPrecision: 'high'
+    });
+  };
+  
+  export const findRestaurantsNearMe = async (
+    position: GeolocationPosition,
+  ): Promise<Place | null> => {
+    return findPOI(position, {
+      isRestaurant: true,
+      searchPrecision: 'medium'
+    });
+  };
+  
+  export const findRestaurantInArea = async (
+    mapBounds: Bounds,
+    searchPrecision: 'high' | 'medium' | 'low' = 'medium'
+  ): Promise<Place | null> => {
+    return findPOI(mapBounds, {
+      isRestaurant: true,
+      searchPrecision
+    });
+  };
+  

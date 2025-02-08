@@ -103,17 +103,21 @@ const RecenterMap: React.FC<{
   useEffect(() => {
     const handleMapMove = () => {
       const bounds = map.getBounds();
-      onMapMoved?.({
+      const boundsObj = {
         north: bounds.getNorth(),
         south: bounds.getSouth(),
         east: bounds.getEast(),
         west: bounds.getWest(),
-      });
+      };
+      console.log('Map bounds updated:', boundsObj);
+      onMapMoved?.(boundsObj);
     };
 
     map.on('moveend', handleMapMove);
+    map.on('zoomend', handleMapMove);
     return () => {
       map.off('moveend', handleMapMove);
+      map.off('zoomend', handleMapMove);
     };
   }, [map, onMapMoved]);
 
@@ -420,9 +424,9 @@ export default function MainComponent() {
 
     try {
       setIsLoading(true);
-      const pois = await findPOIInView(mapBounds);
+      const poi = await findPOIInView(mapBounds, poiTypes);
 
-      if (!pois || pois.length === 0) {
+      if (!poi) {
         toast({
           title: "No POIs found",
           description: "Try panning the map to a different area or selecting different POI types.",
@@ -432,13 +436,23 @@ export default function MainComponent() {
         return;
       }
 
-      // Filter POIs based on selected types
-      const filteredPOIs = pois.filter(poi => {
-        const poiType = poi.type.toLowerCase();
-        return poiTypes.some(type => poiType.includes(type));
-      });
+      // Map specific POI types to our categories
+      const typeMapping: Record<string, string[]> = {
+        food: ['restaurant', 'cafe', 'bar', 'meal_takeaway', 'bakery', 'food'],
+        entertainment: ['movie_theater', 'night_club', 'amusement_park', 'casino', 'theatre', 'cinema'],
+        shopping: ['shopping_mall', 'store', 'department_store', 'supermarket', 'mall'],
+        tourism: ['museum', 'art_gallery', 'tourist_attraction', 'park', 'church']
+      };
 
-      if (filteredPOIs.length === 0) {
+      const poiType = poi.type.toLowerCase();
+      const matchesSelectedTypes = poiTypes.some(type => 
+        typeMapping[type]?.some(specificType => 
+          poiType.includes(specificType.toLowerCase())
+        )
+      );
+
+      if (!matchesSelectedTypes) {
+        console.log(`POI type "${poiType}" didn't match any selected types:`, poiTypes);
         toast({
           title: "No matching POIs found",
           description: "No places matching your selected types were found in view.",
@@ -448,21 +462,13 @@ export default function MainComponent() {
         return;
       }
 
-      // Get addresses for the POIs
-      const poisWithAddresses = await Promise.all(
-        filteredPOIs.slice(0, 5).map(async poi => {
-          const address = await getPlaceAddress(poi);
-          return { ...poi, address };
-        })
-      );
-
-      setSelectedPOIs(poisWithAddresses);
+      setSelectedPOIs([poi]);
       setSelectedRestaurant(null);
-      setCoordinates([poisWithAddresses[0].latitude, poisWithAddresses[0].longitude]);
+      setCoordinates([poi.latitude, poi.longitude]);
 
       toast({
-        title: "Found places!",
-        description: `Found ${poisWithAddresses.length} places in view`,
+        title: "Found a place!",
+        description: `${poi.name} (${poi.type})`,
         duration: 3000,
       });
     } catch (error) {
