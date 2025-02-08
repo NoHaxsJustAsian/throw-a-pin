@@ -1,4 +1,3 @@
-import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Home from "@/pages/Home";
@@ -12,7 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 export default function App() {
   return (
     <ThemeProvider defaultTheme="dark" attribute="class">
-      <Router>
+      <Router> d
         <div className="min-h-screen bg-background">
           <Navbar />
           <Routes>
@@ -23,7 +22,7 @@ export default function App() {
             <Route path="/history" element={<History />} />
           </Routes>
           <Toaster />
-        </div>
+        </div>    
       </Router>
     </ThemeProvider>
   );

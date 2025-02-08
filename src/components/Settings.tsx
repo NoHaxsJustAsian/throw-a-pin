@@ -31,13 +31,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface SettingsProps {
   isLandOnly: boolean;
@@ -51,19 +45,14 @@ interface SettingsProps {
   setSelectedState: (state: string | null) => void;
   selectedCity: string | null;
   setSelectedCity: (city: string | null) => void;
-  enablePOI?: boolean;
-  setEnablePOI?: (value: boolean) => void;
-  poiType?: 'food' | 'entertainment' | 'shopping' | 'tourism' | null;
-  setPoiType?: (type: 'food' | 'entertainment' | 'shopping' | 'tourism' | null) => void;
-  poiRadius?: number;
-  setPoiRadius?: (radius: number) => void;
-  findRestaurantInArea?: () => void;
-  findRestaurant: boolean;
-  setFindRestaurant: (value: boolean) => void;
+  poiTypes?: string[];
+  setPoiTypes?: (types: string[]) => void;
   findRestaurantsNearMe: () => void;
   isLoading: boolean;
   searchPrecision?: 'high' | 'medium' | 'low';
   setSearchPrecision?: (precision: 'high' | 'medium' | 'low') => void;
+  findPOIsInView?: () => void;
+  findRandomPOI?: () => void;
 }
 
 export default function Settings({
@@ -78,19 +67,14 @@ export default function Settings({
   setSelectedState,
   selectedCity,
   setSelectedCity,
-  enablePOI,
-  setEnablePOI,
-  poiType,
-  setPoiType,
-  poiRadius,
-  setPoiRadius,
-  findRestaurantInArea,
-  findRestaurant,
-  setFindRestaurant,
+  poiTypes = [],
+  setPoiTypes,
   findRestaurantsNearMe,
   isLoading,
   searchPrecision = 'medium',
   setSearchPrecision,
+  findPOIsInView,
+  findRandomPOI,
 }: SettingsProps) {
   const [countries, setCountries] = useState<ICountry[]>([]);
   const [states, setStates] = useState<IState[]>([]);
@@ -98,6 +82,13 @@ export default function Settings({
   const [countryOpen, setCountryOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
+
+  // Add effect to set all POI types when POI is enabled
+  useEffect(() => {
+    if (!poiTypes || poiTypes.length === 0) {
+      setPoiTypes?.(['food', 'entertainment', 'shopping', 'tourism', 'leisure', 'sports', 'education', 'health']);
+    }
+  }, [poiTypes, setPoiTypes]);
 
   useEffect(() => {
     setCountries(Country.getAllCountries());
@@ -136,40 +127,42 @@ export default function Settings({
   }, [selectedCity, selectedState, selectedCountry, setPrecision]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pin Settings</CardTitle>
-        <CardDescription>
+    <Card className="shadow-sm">
+      <CardHeader className="pb-1 space-y-0">
+        <CardTitle className="text-lg">Pin Settings</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground -mt-1">
           Configure how your pins are generated
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <Accordion type="multiple" defaultValue={["basic", "search"]}>
-          <AccordionItem value="basic">
-            <AccordionTrigger>Basic Settings</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="land-only" className="flex flex-col space-y-1">
-                  <span>Land Only</span>
-                  <span className="font-normal text-sm text-muted-foreground">
-                    Only generate pins on land
-                  </span>
-                </Label>
-                <Switch
-                  id="land-only"
-                  checked={isLandOnly}
-                  onCheckedChange={setIsLandOnly}
-                />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between space-x-2 mt-2">
+          <Label htmlFor="land-only" className="flex flex-col items-start text-left">
+            <span className="text-sm">Land Only</span>
+            <span className="font-normal text-xs text-muted-foreground">
+              Only generate pins on land
+            </span>
+          </Label>
+          <Switch
+            id="land-only"
+            checked={isLandOnly}
+            onCheckedChange={setIsLandOnly}
+          />
+        </div>
 
+        <Accordion type="multiple" defaultValue={["location"]} className="space-y-1">
           <AccordionItem value="location">
-            <AccordionTrigger>Location Filtering</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Country <span className="text-sm text-muted-foreground">(optional)</span></Label>
+            <AccordionTrigger className="py-2 hover:no-underline">
+              <div className="flex flex-col items-start text-left">
+                <span className="text-sm font-medium">Location Filtering</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Restrict pins to specific regions
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pt-3 pl-2 text-sm">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Country <span className="text-xs text-muted-foreground">(optional)</span></Label>
                   <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -231,8 +224,8 @@ export default function Settings({
                 </div>
 
                 {selectedCountry && states.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>State/Province <span className="text-sm text-muted-foreground">(optional)</span></Label>
+                  <div className="space-y-1.5">
+                    <Label>State/Province <span className="text-xs text-muted-foreground">(optional)</span></Label>
                     <Popover open={stateOpen} onOpenChange={setStateOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -295,8 +288,8 @@ export default function Settings({
                 )}
 
                 {selectedState && cities.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>City <span className="text-sm text-muted-foreground">(optional)</span></Label>
+                  <div className="space-y-1.5">
+                    <Label>City <span className="text-xs text-muted-foreground">(optional)</span></Label>
                     <Popover open={cityOpen} onOpenChange={setCityOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -360,155 +353,95 @@ export default function Settings({
           </AccordionItem>
 
           <AccordionItem value="poi">
-            <AccordionTrigger>Points of Interest</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="find-restaurant" className="flex flex-col space-y-1">
-                    <span>Random Food</span>
-                    <span className="font-normal text-sm text-muted-foreground">
-                      Find a random place to eat when throwing pins
-                    </span>
-                  </Label>
-                  <Switch
-                    id="find-restaurant"
-                    checked={findRestaurant}
-                    onCheckedChange={setFindRestaurant}
-                  />
-                </div>
-
-                <div className="pt-6 border-t">
-                  <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="enable-poi" className="flex flex-col space-y-1">
-                      <span>Other POI Search</span>
-                      <span className="font-normal text-sm text-muted-foreground">
-                        Find other interesting places nearby
-                      </span>
-                    </Label>
-                    <Switch
-                      id="enable-poi"
-                      checked={enablePOI}
-                      onCheckedChange={setEnablePOI}
-                    />
-                  </div>
-
-                  {enablePOI && (
-                    <>
-                      <div className="space-y-2 mt-4">
-                        <Label>POI Type <span className="text-sm text-muted-foreground">(optional)</span></Label>
-                        <Select
-                          value={poiType || 'any'}
-                          onValueChange={(value) => setPoiType?.(value === 'any' ? null : value as any)}
-                        >
-              <SelectTrigger>
-                            <SelectValue placeholder="Select POI type" />
-              </SelectTrigger>
-              <SelectContent>
-                            <SelectItem value="any">Any type</SelectItem>
-                            <SelectItem value="food">Food & Drink</SelectItem>
-                            <SelectItem value="entertainment">Entertainment</SelectItem>
-                            <SelectItem value="shopping">Shopping</SelectItem>
-                            <SelectItem value="tourism">Tourism</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-                      <div className="space-y-2 mt-4">
-                        <Label>POI Search Radius <span className="text-sm text-muted-foreground">(kilometers)</span></Label>
-                        <Select
-                          value={poiRadius?.toString() || '2000'}
-                          onValueChange={(value) => setPoiRadius?.(parseInt(value))}
-                        >
-              <SelectTrigger>
-                            <SelectValue placeholder="Select radius" />
-              </SelectTrigger>
-              <SelectContent>
-                            <SelectItem value="1000">1km</SelectItem>
-                            <SelectItem value="2000">2km</SelectItem>
-                            <SelectItem value="5000">5km</SelectItem>
-                            <SelectItem value="10000">10km</SelectItem>
-                            <SelectItem value="30000">30km</SelectItem>
-                            <SelectItem value="50000">50km</SelectItem>
-                            <SelectItem value="100000">100km</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-                    </>
-                  )}
-          </div>
-          </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="search">
-            <AccordionTrigger>Search Settings</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
+            <AccordionTrigger className="py-2 hover:no-underline">
+              <div className="flex flex-col items-start text-left">
+                <span className="text-sm font-medium">Points of Interest</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Select types of places to find
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pt-3 pl-2 text-sm">
               <div className="space-y-2">
-                <Label>Search Mode</Label>
-                <Select
-                  value={searchPrecision}
-                  onValueChange={(value: 'high' | 'medium' | 'low') => setSearchPrecision?.(value)}
-                >
-                  <SelectTrigger className="w-full bg-background border-input focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0">
-                    <SelectValue placeholder="Select search mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="high" className="py-3 border-0">
-                      <div className="space-y-1">
-                        <div className="font-medium">Fast Search</div>
-                        <div className="text-xs text-muted-foreground">Closest matches only (1km radius)</div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="medium" className="py-3 border-0">
-                      <div className="space-y-1">
-                        <div className="font-medium">Balanced</div>
-                        <div className="text-xs text-muted-foreground">Default mode with moderate range (3km radius)</div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="low" className="py-3 border-0">
-                      <div className="space-y-1">
-                        <div className="font-medium">Wide Search</div>
-                        <div className="text-xs text-muted-foreground">Broader area, more results (5km+ radius)</div>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Choose between quick nearby results or a broader search area. Wide search takes longer but finds more options.
-                </p>
+                {[
+                  { id: 'food', label: 'Food & Drink', icon: '🍽️' },
+                  { id: 'entertainment', label: 'Entertainment', icon: '🎭' },
+                  { id: 'shopping', label: 'Shopping', icon: '🛍️' },
+                  { id: 'tourism', label: 'Tourism', icon: '🏛️' },
+                  { id: 'leisure', label: 'Leisure', icon: '🎮' },
+                  { id: 'sports', label: 'Sports', icon: '⚽' },
+                  { id: 'education', label: 'Education', icon: '📚' },
+                  { id: 'health', label: 'Health', icon: '🏥' }
+                ].map(type => (
+                  <div key={type.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`poi-${type.id}`}
+                      checked={poiTypes?.includes(type.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setPoiTypes?.([...poiTypes || [], type.id]);
+                        } else {
+                          setPoiTypes?.(poiTypes?.filter(t => t !== type.id) || []);
+                        }
+                      }}
+                    />
+                    <Label
+                      htmlFor={`poi-${type.id}`}
+                      className="text-sm font-normal flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>{type.icon}</span>
+                      {type.label}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
 
-        <div className="pt-4 space-y-4">
-          <Button onClick={throwNewPin} className="w-full text-lg h-12" disabled={isLoading}>
-            <span className="mr-2 text-xl">📌</span>
-            Throw a New Pin
-          </Button>
-
-          <Button 
-            onClick={findRestaurantsNearMe} 
-            className="w-full text-lg h-12 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white"
-            variant="destructive"
-            disabled={isLoading}
-          >
-            <span className="mr-2 text-xl">🍽️</span>
-            {isLoading ? "Finding Food..." : "GF HUNGRY"}
-          </Button>
-
-          <div className="pt-2">
+        <div className="pt-3 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
             <Button 
-              onClick={findRestaurantInArea} 
-              className="w-full text-lg h-12"
+              onClick={throwNewPin} 
+              className="h-20 flex flex-col items-center justify-center space-y-1"
               variant="outline"
               disabled={isLoading}
             >
-              <span className="mr-2 text-xl">🔍</span>
-              {isLoading ? "Searching..." : "Find Food in View"}
+              <span className="text-2xl">📍</span>
+              <span className="text-xs">Throw a New Pin</span>
+            </Button>
+
+            <Button 
+              onClick={findRestaurantsNearMe}
+              className="h-20 flex flex-col items-center justify-center space-y-1 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
+              variant="destructive"
+              disabled={isLoading}
+            >
+              <span className="text-2xl">🍽️</span>
+              <span className="text-xs">GF HUNGRY</span>
+            </Button>
+
+            <Button 
+              onClick={findRandomPOI}
+              className="h-20 flex flex-col items-center justify-center space-y-1"
+              variant="outline"
+              disabled={isLoading || !poiTypes?.length}
+            >
+              <span className="text-2xl">🎯</span>
+              <span className="text-xs">Random POI</span>
+            </Button>
+
+            <Button 
+              onClick={findPOIsInView}
+              className="h-20 flex flex-col items-center justify-center space-y-1"
+              variant="outline"
+              disabled={isLoading || !poiTypes?.length}
+            >
+              <span className="text-2xl">🔍</span>
+              <span className="text-xs">Find POIs in View</span>
             </Button>
           </div>
-    </div>
+        </div>
       </CardContent>
     </Card>
   );

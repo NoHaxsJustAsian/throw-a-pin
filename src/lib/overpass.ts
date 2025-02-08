@@ -109,6 +109,8 @@ export interface Place {
   cuisine?: string;
   openingHours?: string;
   address?: string;
+  phone?: string;
+  email?: string;
 }
 
 export const searchNearby = async (
@@ -334,4 +336,264 @@ export const getPlaceDetails = async (
     console.error('Error fetching place details:', error);
     throw error;
   }
+};
+
+export interface Bounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+export const findPOIInView = async (bounds: Bounds): Promise<Place[]> => {
+  const query = `
+    [out:json][timeout:10];
+    (
+      // Food establishments
+      nwr[name][amenity~"^(restaurant|cafe|coffee_shop|fast_food|bar|pub|food_court)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+      // Entertainment venues
+      nwr[name][amenity~"^(cinema|theatre|nightclub|arts_centre|casino)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+      // Shopping places
+      nwr[name][shop~"^(mall|supermarket|department_store)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+      nwr[name][amenity="marketplace"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+      // Tourist attractions
+      nwr[name][tourism~"^(museum|gallery|attraction|viewpoint|theme_park)$"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+    );
+    out body qt;
+    >;
+    out skel qt;
+  `;
+
+  try {
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `data=${encodeURIComponent(query)}`,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data: OverpassResponse = await response.json();
+    
+    // Filter and map results
+    const places = data.elements
+      .filter(element => element.tags?.name)
+      .map(element => {
+        const tags = element.tags;
+        return {
+          id: element.id,
+          name: tags.name || 'Unnamed Location',
+          latitude: element.lat,
+          longitude: element.lon,
+          type: formatAmenityType(tags.amenity || tags.tourism || tags.shop || tags.leisure || 'Unknown'),
+          website: tags.website || tags['contact:website'],
+          cuisine: formatCuisine(tags.cuisine),
+          openingHours: tags.opening_hours ? formatOpeningHours(tags.opening_hours) : undefined,
+          phone: tags.phone || tags['contact:phone'],
+          email: tags['contact:email'],
+          instagram: tags['social:instagram'],
+          description: tags.description || tags.note || tags.history || '',
+          wheelchair: tags.wheelchair,
+          outdoor_seating: tags.outdoor_seating
+        };
+      });
+
+    return places;
+  } catch (error) {
+    console.error('Error fetching from Overpass:', error);
+    throw error;
+  }
+};
+
+export const checkIfOpen = (hours: string | undefined): boolean => {
+  if (!hours) return false;
+  
+  const now = new Date();
+  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
+  const time = now.getHours() * 100 + now.getMinutes();
+
+  const todayHours = hours.split('\n').find(line => line.startsWith(day));
+  if (!todayHours) return false;
+
+  const timeRanges = todayHours.split(': ')[1];
+  if (!timeRanges) return false;
+
+  return timeRanges.split(' and ').some(range => {
+    const [start, end] = range.split('-').map(t => {
+      const [hours, minutes = '00'] = t.trim().split(':');
+      return parseInt(hours) * 100 + parseInt(minutes);
+    });
+    return time >= start && time <= end;
+  });
+};
+
+export interface FindPOIOptions {
+  searchPrecision?: 'high' | 'medium' | 'low';
+  searchRadius?: number;
+  isRestaurant?: boolean;
+  poiTypes?: string[];
+}
+
+export const findPOI = async (
+  coordinates: [number, number] | GeolocationPosition | Bounds,
+  options: FindPOIOptions = {}
+): Promise<Place | null> => {
+  const {
+    searchPrecision = 'medium',
+    searchRadius: customSearchRadius,
+    isRestaurant = false,
+    poiTypes = []
+  } = options;
+
+  let searchLat: number;
+  let searchLng: number;
+  let baseRadius: number;
+
+  // Handle different coordinate input types
+  if ('coords' in coordinates) {
+    // GeolocationPosition
+    searchLat = coordinates.coords.latitude;
+    searchLng = coordinates.coords.longitude;
+    baseRadius = customSearchRadius || 5000; // Default 5km for geolocation
+  } else if ('north' in coordinates) {
+    // Bounds
+    searchLat = (coordinates.north + coordinates.south) / 2;
+    searchLng = (coordinates.east + coordinates.west) / 2;
+    
+    // Calculate radius based on bounds
+    const latDistance = (coordinates.north - coordinates.south) * 111000;
+    const lngDistance = (coordinates.east - coordinates.west) * 111000 * Math.cos(searchLat * Math.PI / 180);
+    baseRadius = Math.min(Math.max(Math.max(latDistance, lngDistance) / 2, 1000), 50000);
+  } else {
+    // LatLngTuple
+    [searchLat, searchLng] = coordinates;
+    baseRadius = customSearchRadius || 10000; // Default 10km for direct coordinates
+  }
+
+  // Configure search parameters based on precision
+  const searchConfig = {
+    high: { maxResults: 10, radiusMultiplier: 0.5 },
+    medium: { maxResults: 30, radiusMultiplier: 1.5 },
+    low: { maxResults: 500, radiusMultiplier: 2.5 }
+  }[searchPrecision];
+
+  const searchRadius = baseRadius * searchConfig.radiusMultiplier;
+
+  // Define search tags based on type
+  const restaurantTags = [
+    'restaurant',
+    'fast_food',
+    'cafe',
+    'pub',
+    'bar',
+    'food_court',
+    'biergarten',
+    'ice_cream',
+    'food',
+    'deli'
+  ];
+
+  try {
+    let results: Place[] = [];
+
+    if (isRestaurant) {
+      // Search for restaurants
+      results = await searchNearby(
+        searchLat,
+        searchLng,
+        searchRadius,
+        restaurantTags,
+        searchConfig.maxResults
+      );
+    } else if (poiTypes.length > 0) {
+      // Search for POIs in all selected categories
+      const allPOIs = await Promise.all(
+        poiTypes.filter(isValidPOIType).map(type => 
+          searchPlaces(
+            searchLat,
+            searchLng,
+            type as ValidPOIType,
+            searchRadius
+          )
+        )
+      );
+      results = allPOIs.flat();
+    }
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    // Sort by distance from search coordinates
+    const sortedResults = results.sort((a, b) => {
+      const distA = Math.pow(a.latitude - searchLat, 2) + Math.pow(a.longitude - searchLng, 2);
+      const distB = Math.pow(b.latitude - searchLat, 2) + Math.pow(b.longitude - searchLng, 2);
+      return distA - distB;
+    });
+
+    // Select either the closest or a random result based on the use case
+    const selectedPlace = isRestaurant || poiTypes.length === 0
+      ? sortedResults[Math.floor(Math.random() * Math.min(sortedResults.length, 10))] // Random from top 10 for restaurants
+      : sortedResults[0]; // Closest for POIs
+
+    // Fetch the address for the selected place
+    const address = await getPlaceAddress(selectedPlace);
+    return { ...selectedPlace, address };
+  } catch (error) {
+    console.error('Error finding place:', error);
+    throw error;
+  }
+};
+
+// Helper function to find a random POI
+export const findRandomPOI = async (
+  mapBounds: Bounds,
+  poiTypes: string[],
+): Promise<Place | null> => {
+  return findPOI(mapBounds, {
+    poiTypes,
+    searchPrecision: 'medium'
+  });
+};
+
+// Helper function to find the closest POI
+export const findClosestPOI = async (
+  coordinates: [number, number],
+  poiTypes: string[],
+): Promise<Place | null> => {
+  return findPOI(coordinates, {
+    poiTypes,
+    searchPrecision: 'high'
+  });
+};
+
+// Helper function to find restaurants near me
+export const findRestaurantsNearMe = async (
+  position: GeolocationPosition,
+): Promise<Place | null> => {
+  return findPOI(position, {
+    isRestaurant: true,
+    searchPrecision: 'medium'
+  });
+};
+
+// Helper function to find restaurants in area
+export const findRestaurantInArea = async (
+  mapBounds: Bounds,
+  searchPrecision: 'high' | 'medium' | 'low' = 'medium'
+): Promise<Place | null> => {
+  return findPOI(mapBounds, {
+    isRestaurant: true,
+    searchPrecision
+  });
+};
+
+export type ValidPOIType = "tourism" | "food" | "entertainment" | "shopping";
+
+export const isValidPOIType = (type: string): type is ValidPOIType => {
+  return ["tourism", "food", "entertainment", "shopping"].includes(type);
 }; 
