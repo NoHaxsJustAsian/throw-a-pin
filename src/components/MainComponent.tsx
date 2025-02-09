@@ -337,8 +337,8 @@ export default function MainComponent() {
         user_id: user.id,
         name: selectedRestaurant?.name || selectedPOIs[0]?.name || null,
         address: selectedRestaurant?.address || selectedPOIs[0]?.address || null,
-        coord_x: coordinates[1], // longitude
-        coord_y: coordinates[0], // latitude
+        longitude: coordinates[1], // longitude
+        latitude: coordinates[0], // latitude
         created_at: new Date().toISOString(),
         place_type: selectedRestaurant 
           ? 'restaurant'

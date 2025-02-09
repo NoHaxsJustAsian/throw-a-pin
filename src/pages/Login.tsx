@@ -1,57 +1,192 @@
-import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { supabase } from '@/lib/supabase';
+"use client"
+
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/hooks/useAuth"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 export default function Login() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [isPinPulling, setIsPinPulling] = useState(false)
 
   useEffect(() => {
     if (user) {
-      navigate('/map');
+      navigate("/map")
     }
-  }, [user, navigate]);
+  }, [user, navigate])
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      navigate("/map")
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) throw error
+      toast({
+        title: "Success",
+        description: "Check your email for the confirmation link.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Please enter your email address",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      if (error) throw error
+      toast({
+        title: "Success",
+        description: "Password reset email sent. Check your inbox.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleGoogleSignIn = async () => {
+    setIsLoading(true)
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/map`,
         },
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
+      })
+      if (error) throw error
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
+
+  const handleGuestEntry = () => {
+    setIsPinPulling(true)
+    // Wait for animation to complete before navigating
+    setTimeout(() => {
+      navigate("/map")
+    }, 500) // 500ms matches the animation duration
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-3">
-          <div className="flex justify-center">
-            <span className="text-5xl">📍</span>
+          <div className="flex justify-center h-20 relative">
+            <span 
+              className={cn(
+                "text-5xl absolute transition-transform duration-500",
+                isPinPulling && "animate-pin-pull"
+              )}
+            >
+              📍
+            </span>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-bold">{isSignUp ? "Create an account" : "Welcome back"}</CardTitle>
           <CardDescription>
-            Sign in to save and manage your favorite locations
+            {isSignUp ? "Sign up to start saving your favorite locations" : "Sign in to manage your favorite locations"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <form onSubmit={isSignUp ? handleEmailSignUp : handleEmailSignIn} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Processing..." : isSignUp ? "Sign Up" : "Sign In"}
+            </Button>
+          </form>
+          {!isSignUp && (
+            <Button variant="link" className="w-full" onClick={handleForgotPassword} disabled={isLoading}>
+              Forgot password?
+            </Button>
+          )}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
           <Button
             variant="outline"
             className="w-full h-12 font-medium"
             onClick={handleGoogleSignIn}
+            disabled={isLoading}
           >
             <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -73,25 +208,26 @@ export default function Login() {
             </svg>
             Continue with Google
           </Button>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
           <Button
-            variant="default"
-            className="w-full h-12"
-            onClick={() => navigate('/map')}
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setIsSignUp(!isSignUp)
+            }}
+            disabled={isLoading}
+          >
+            {isSignUp ? "Already have an account? Sign In" : "Need an account? Sign Up"}
+          </Button>
+          <Button 
+            variant="secondary" 
+            className="w-full" 
+            onClick={handleGuestEntry} 
+            disabled={isLoading || isPinPulling}
           >
             Continue as Guest
           </Button>
         </CardContent>
       </Card>
     </div>
-  );
-} 
+  )
+}

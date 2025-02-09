@@ -12,8 +12,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type Place = {
   id: number 
   user_id: string
-  coordx: number
-  coordy: number
+  longitude: number
+  latitude: number
   name?: string
   address?: string
   openingHours?: string

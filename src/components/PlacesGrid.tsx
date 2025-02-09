@@ -10,20 +10,25 @@ import { supabase, Place } from "@/lib/supabase"
 export default function PlacesGrid() {
   const [places, setPlaces] = useState<Place[]>([])
   const [loading, setLoading] = useState(true)
-
-  const TEST_UUID = '9e38267e-69e8-4683-9a26-6fba249a17c8'
+  const [user, setUser] = useState<null | { id: string }>(null)
 
   useEffect(() => {
-    fetchPlaces()
+    // Get current user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUser(user)
+        fetchPlaces(user.id)
+      }
+    })
   }, [])
 
-  async function fetchPlaces() {
+  async function fetchPlaces(userId: string) {
     try {
       setLoading(true)
       const { data, error } = await supabase
         .from("places")
         .select("*")
-        .eq("user_id", TEST_UUID)
+        .eq("user_id", userId)
   
       if (error) throw error
   
@@ -73,7 +78,7 @@ export default function PlacesGrid() {
               </p>
             )}
             <p className="text-sm text-muted-foreground">
-              Coordinates: {place.coordx}, {place.coordy}
+              Coordinates: {place.latitude}, {place.longitude}
             </p>
             {place.openingHours && (
               <p className="text-sm text-muted-foreground mt-2">
