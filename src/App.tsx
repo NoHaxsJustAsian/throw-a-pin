@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
-import SavedLocations from "@/pages/SavedLocations";
+import PlacesPage from "@/components/PlacesPage";
 import MainComponent from "@/components/MainComponent";
 import History from "@/pages/History";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,7 +18,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/map" element={<MainComponent />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/saved" element={<SavedLocations />} />
+            <Route path="/saved" element={<PlacesPage />} />
             <Route path="/history" element={<History />} />
           </Routes>
           <Toaster />

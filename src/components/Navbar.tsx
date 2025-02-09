@@ -57,7 +57,7 @@ export default function Navbar() {
               {user && (
                 <>
                   <NavLink to="/saved">Saved Locations</NavLink>
-                  <NavLink to="/history">History</NavLink>
+                  <NavLink to="/">History</NavLink>
                 </>
               )}
             </div>
