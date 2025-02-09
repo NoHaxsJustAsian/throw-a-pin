@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -57,6 +58,7 @@ interface Collection {
   name: string;
   user_id: string;
   created_at: string;
+  places?: Place[];
 }
 
 interface Place {
@@ -81,9 +83,9 @@ interface CollectionsListProps {
   newCollectionName: string;
   setNewCollectionName: (name: string) => void;
   onToggleCollection: (collection: Collection) => void;
-  onCreateCollection: () => void;
-  onDeleteCollection: (id: string) => void;
-  onRenameCollection: (collection: Collection) => void;
+  onCreateCollection: () => Promise<void>;
+  onDeleteCollection: (id: string) => Promise<void>;
+  onRenameCollection: (collection: Collection, newName: string) => Promise<void>;
 }
 
 function CollectionsList({
@@ -107,22 +109,34 @@ function CollectionsList({
       </SidebarHeader>
       <SidebarContent>
         <div className="space-y-4 px-2">
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full justify-start" size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 New Collection
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent 
+              onPointerDownOutside={(e) => e.preventDefault()}
+              className="fixed top-1/4 left-1/2 transform -translate-x-1/2 z-[9999] bg-background"
+            >
               <DialogHeader>
                 <DialogTitle>Create Collection</DialogTitle>
+                <DialogDescription>
+                  Enter a name for your new collection.
+                </DialogDescription>
               </DialogHeader>
               <div className="flex gap-2">
                 <Input
                   placeholder="Collection name"
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      onCreateCollection();
+                    }
+                  }}
+                  autoFocus
                 />
                 <Button onClick={onCreateCollection}>Create</Button>
               </div>
@@ -135,10 +149,27 @@ function CollectionsList({
                 <div className="flex items-center gap-2">
                   <Button
                     variant={selectedCollections.some(c => c.id === collection.id) ? "default" : "ghost"}
-                    className="w-full justify-start h-8 px-2"
+                    className="w-full justify-start h-auto px-2 py-3"
                     onClick={() => onToggleCollection(collection)}
                   >
-                    <span className="truncate text-sm">{collection.name}</span>
+                    <div className="text-left">
+                      <span className="block text-sm font-medium">{collection.name}</span>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {collection.places?.slice(0, 3).map((place) => (
+                          <div key={place.id} className="truncate">
+                            {place.name || `${place.latitude.toFixed(4)}, ${place.longitude.toFixed(4)}`}
+                          </div>
+                        ))}
+                        {collection.places && collection.places.length > 3 && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            +{collection.places.length - 3} more places
+                          </div>
+                        )}
+                        {(!collection.places || collection.places.length === 0) && (
+                          <div className="text-xs italic">No places saved yet</div>
+                        )}
+                      </div>
+                    </div>
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -156,7 +187,7 @@ function CollectionsList({
                         Open List
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => onRenameCollection(collection)}
+                        onClick={() => onRenameCollection(collection, collection.name)}
                       >
                         <Pencil className="mr-2 h-4 w-4" />
                         Rename
@@ -211,6 +242,7 @@ function PlacesPageContent() {
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [placeCollections, setPlaceCollections] = useState<Record<number, string[]>>({})
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -313,106 +345,86 @@ function PlacesPageContent() {
     }
   }
 
-  const createCollection = async () => {
-    if (!user || !newCollectionName.trim()) return
+  const onCreateCollection = async () => {
+    if (!user || !newCollectionName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a collection name",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const { data, error } = await supabase
         .from("collections")
-        .insert([
-          {
-            name: newCollectionName.trim(),
-            user_id: user.id,
-          },
-        ])
+        .insert([{ name: newCollectionName.trim(), user_id: user.id }])
         .select()
-        .single()
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
-      setCollections([data, ...collections])
-      setNewCollectionName("")
-      toast({
-        title: "Success",
-        description: "Collection created successfully",
-      })
+      setCollections([data, ...collections]);
+      setNewCollectionName("");
+      setIsDialogOpen(false);
+      toast({ title: "Success", description: "Collection created" });
     } catch (error) {
-      console.error("Error creating collection:", error)
       toast({
         title: "Error",
         description: "Failed to create collection",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  const toggleCollection = (collection: Collection) => {
+  const onToggleCollection = (collection: Collection) => {
     setSelectedCollections(prev => {
       const isSelected = prev.some(c => c.id === collection.id);
-      if (isSelected) {
-        return prev.filter(c => c.id !== collection.id);
-      } else {
-        return [...prev, collection];
-      }
+      return isSelected 
+        ? prev.filter(c => c.id !== collection.id)
+        : [...prev, collection];
     });
   };
 
-  const deleteCollection = async (collectionId: string) => {
-    if (!user) return;
-
+  const onDeleteCollection = async (id: string) => {
     try {
       const { error } = await supabase
         .from("collections")
         .delete()
-        .eq("id", collectionId)
+        .eq("id", id);
 
       if (error) throw error;
 
-      setCollections(collections.filter(c => c.id !== collectionId));
-      setSelectedCollections(selected => selected.filter(c => c.id !== collectionId));
-
-      toast({
-        title: "Success",
-        description: "Collection deleted successfully",
-      })
+      setCollections(prev => prev.filter(c => c.id !== id));
+      setSelectedCollections(prev => prev.filter(c => c.id !== id));
+      toast({ title: "Success", description: "Collection deleted" });
     } catch (error) {
-      console.error("Error deleting collection:", error)
       toast({
         title: "Error",
         description: "Failed to delete collection",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  const renameCollection = async () => {
-    if (!collectionToRename || !newName.trim()) return;
+  const onRenameCollection = async (collection: Collection, newName: string) => {
+    if (!newName.trim()) return;
 
     try {
       const { error } = await supabase
         .from("collections")
         .update({ name: newName.trim() })
-        .eq("id", collectionToRename.id);
+        .eq("id", collection.id);
 
       if (error) throw error;
 
-      setCollections(collections.map(c => 
-        c.id === collectionToRename.id 
-          ? { ...c, name: newName.trim() } 
-          : c
-      ));
-
-      setCollectionToRename(null);
-      setNewName("");
-      
-      toast({
-        title: "Success",
-        description: "Collection renamed successfully",
-      });
+      setCollections(prev => 
+        prev.map(c => c.id === collection.id ? { ...c, name: newName.trim() } : c)
+      );
+      toast({ title: "Success", description: "Collection renamed" });
     } catch (error) {
-      console.error("Error renaming collection:", error);
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to rename collection",
         variant: "destructive",
       });
@@ -507,6 +519,44 @@ function PlacesPageContent() {
     fetchPlaceCollections();
   }, [places]);
 
+  const fetchCollectionPreviews = async (collections: Collection[]) => {
+    try {
+      const { data, error } = await supabase
+        .from("collection_places")
+        .select(`
+          collection_id,
+          place:places (
+            id,
+            name,
+            address,
+            latitude,
+            longitude
+          )
+        `)
+        .in("collection_id", collections.map(c => c.id))
+        .limit(3);
+
+      if (error) throw error;
+
+      const collectionPreviews = collections.map(collection => ({
+        ...collection,
+        places: data
+          ?.filter(item => item.collection_id === collection.id)
+          .map(item => item.place as Place) || []
+      }));
+
+      setCollections(collectionPreviews);
+    } catch (error) {
+      console.error("Error fetching collection previews:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (collections.length > 0) {
+      fetchCollectionPreviews(collections);
+    }
+  }, [collections.length]);
+
   const renderMap = () => {
     if (!places || places.length === 0) return null;
 
@@ -558,24 +608,36 @@ function PlacesPageContent() {
                 <h2 className="text-sm font-medium">Collections</h2>
               </div>
               <div className="space-y-4 px-2">
-                <Dialog>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full justify-start" size="sm">
                       <Plus className="h-4 w-4 mr-2" />
                       New Collection
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent 
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                    className="fixed top-1/4 left-1/2 transform -translate-x-1/2 z-[9999] bg-background"
+                  >
                     <DialogHeader>
                       <DialogTitle>Create Collection</DialogTitle>
+                      <DialogDescription>
+                        Enter a name for your new collection.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="flex gap-2">
                       <Input
                         placeholder="Collection name"
                         value={newCollectionName}
                         onChange={(e) => setNewCollectionName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onCreateCollection();
+                          }
+                        }}
+                        autoFocus
                       />
-                      <Button onClick={createCollection}>Create</Button>
+                      <Button onClick={onCreateCollection}>Create</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -586,10 +648,27 @@ function PlacesPageContent() {
                       <div className="flex items-center gap-2">
                         <Button
                           variant={selectedCollections.some(c => c.id === collection.id) ? "default" : "ghost"}
-                          className="w-full justify-start h-8 px-2"
-                          onClick={() => toggleCollection(collection)}
+                          className="w-full justify-start h-auto px-2 py-3"
+                          onClick={() => onToggleCollection(collection)}
                         >
-                          <span className="truncate text-sm">{collection.name}</span>
+                          <div className="text-left">
+                            <span className="block text-sm font-medium">{collection.name}</span>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {collection.places?.slice(0, 3).map((place) => (
+                                <div key={place.id} className="truncate">
+                                  {place.name || `${place.latitude.toFixed(4)}, ${place.longitude.toFixed(4)}`}
+                                </div>
+                              ))}
+                              {collection.places && collection.places.length > 3 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  +{collection.places.length - 3} more places
+                                </div>
+                              )}
+                              {(!collection.places || collection.places.length === 0) && (
+                                <div className="text-xs italic">No places saved yet</div>
+                              )}
+                            </div>
+                          </div>
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -607,10 +686,7 @@ function PlacesPageContent() {
                               Open List
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => {
-                                setCollectionToRename(collection);
-                                setNewName(collection.name);
-                              }}
+                              onClick={() => onRenameCollection(collection, collection.name)}
                             >
                               <Pencil className="mr-2 h-4 w-4" />
                               Rename
@@ -630,7 +706,7 @@ function PlacesPageContent() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => deleteCollection(collection.id)}
+                              onClick={() => onDeleteCollection(collection.id)}
                               className="text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -802,7 +878,7 @@ function PlacesPageContent() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
               />
-              <Button onClick={renameCollection}>Save</Button>
+              <Button onClick={() => onRenameCollection(collectionToRename!, newName)}>Save</Button>
             </div>
           </DialogContent>
         </Dialog>
