@@ -181,6 +181,7 @@ export default function PlacesPage() {
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-64 space-y-4">
           <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold">Saved Locations</h1>
             <Dialog>
               <DialogTrigger asChild>
                 <Button className="w-full" size="sm">
