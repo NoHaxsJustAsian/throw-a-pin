@@ -23,7 +23,7 @@ export default function App() {
             <Route path="/history" element={<History />} />
             <Route path="/lists/:id" element={<SharedList />} />
           </Routes>
-          <Toaster className="z-[9999]" />
+          <Toaster />
         </div>    
       </Router>
     </ThemeProvider>

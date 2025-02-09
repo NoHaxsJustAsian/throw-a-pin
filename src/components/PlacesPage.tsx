@@ -86,6 +86,8 @@ interface CollectionsListProps {
   onCreateCollection: () => Promise<void>;
   onDeleteCollection: (id: string) => Promise<void>;
   onRenameCollection: (collection: Collection, newName: string) => Promise<void>;
+  isDialogOpen: boolean;
+  setIsDialogOpen: (open: boolean) => void;
 }
 
 function CollectionsList({
@@ -97,6 +99,8 @@ function CollectionsList({
   onCreateCollection,
   onDeleteCollection,
   onRenameCollection,
+  isDialogOpen,
+  setIsDialogOpen,
 }: CollectionsListProps) {
   const { toast } = useToast()
   
@@ -542,7 +546,10 @@ function PlacesPageContent() {
         ...collection,
         places: data
           ?.filter(item => item.collection_id === collection.id)
-          .map(item => item.place as Place) || []
+          .map(item => ({
+            ...(item.place as unknown as Place),
+            place_type: (item.place as any).place_type || null
+          })) || []
       }));
 
       setCollections(collectionPreviews);
