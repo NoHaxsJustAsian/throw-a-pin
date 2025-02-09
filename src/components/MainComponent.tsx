@@ -101,16 +101,16 @@ const RecenterMap: React.FC<{
 
   useEffect(() => {
     if (coordinates) {
-      let zoomLevel = 4;
+      let zoomLevel = 3;
       
       if (isRestaurant || isPOI) {
-        zoomLevel = 14;
+        zoomLevel = 11;
       } else if (selectedCity) {
-        zoomLevel = 13;
+        zoomLevel = 10;
       } else if (selectedState) {
-        zoomLevel = 8;
-      } else if (selectedCountry) {
         zoomLevel = 6;
+      } else if (selectedCountry) {
+        zoomLevel = 4;
       }
 
       map.flyTo(coordinates, zoomLevel, {
@@ -1056,7 +1056,7 @@ export default function MainComponent() {
                   <CoordinateOverlay coordinates={coordinates} />
                   <MapContainer
                     center={[0, 0]}
-                    zoom={2}
+                    zoom={1}
                     className="h-full w-full z-10"
                     zoomControl={false}
                   >
