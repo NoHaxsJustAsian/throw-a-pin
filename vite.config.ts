@@ -3,8 +3,6 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuaWN1b3hka29pZGtpa2lqZnpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkwMzg3MzksImV4cCI6MjA1NDYxNDczOX0.fsKJhjE46hnu7q1ZaT0CNoD6jv_QQiYb9zRF-rzwV6E"
-const SUPABASE_URL = "https://anicuoxdkoidkikijfzf.supabase.co"
-const OPENCAGE_API_KEY = "9a12a123619a44409a643c5f03ed57be"
 
 export default defineConfig({
   base: '/',
