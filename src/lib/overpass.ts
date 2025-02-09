@@ -122,16 +122,6 @@ function formatAmenityType(type: string | undefined): string {
     .join(' ');
 }
 
-function formatCuisine(cuisine: string | undefined): string | undefined {
-  if (!cuisine) return undefined;
-  
-  return cuisine
-    .split(/[,;_]/) // Split by commas, semicolons, and underscores
-    .map(c => c.trim())
-    .filter(c => c.length > 0) // Remove empty strings
-    .map(c => c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()) // Proper capitalization
-    .join(', ');
-}
 
 // --- Interfaces ---
 
@@ -167,7 +157,8 @@ export const searchNearby = async (
   lon: number,
   radius: number = 1000,
   types: string[] = ['restaurant', 'cafe', 'bar', 'park'],
-  maxResults: number = 20
+  maxResults: number = 20,
+  category?: ValidPOIType
 ): Promise<Place[]> => {
   // Ensure Google Maps is loaded
   await loadGoogleMaps();
@@ -180,7 +171,7 @@ export const searchNearby = async (
     const mapDiv = document.createElement('div');
     const map = new google.maps.Map(mapDiv, {
       center: location,
-      zoom: 12  // Changed from 15 to 12 for a more zoomed out view
+      zoom: 12
     });
 
     const service = new google.maps.places.PlacesService(map);
@@ -189,7 +180,7 @@ export const searchNearby = async (
     let totalRequests = types.length;
     let successfulRequests = 0;
 
-    console.log(`Searching for types:`, types);
+    console.log(`Searching for types:`, types, `in category:`, category);
 
     // For each type, make a separate Places API request
     types.forEach(type => {
@@ -205,20 +196,49 @@ export const searchNearby = async (
 
         if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
           successfulRequests++;
+          
           // Map Google Place results to our Place interface
-          const places: Place[] = results.map(result => ({
-            id: result.place_id || '',
-            name: result.name || 'Unknown',
-            latitude: result.geometry?.location?.lat() || lat,
-            longitude: result.geometry?.location?.lng() || lon,
-            type: result.types?.length ? formatAmenityType(result.types[0]) : formatAmenityType(type),
-            website: undefined,
-            cuisine: undefined,
-            openingHours: undefined, // We'll need a separate getDetails call for this
-            address: result.vicinity || undefined,
-            phone: undefined,
-            email: undefined,
-          }));
+          const places: Place[] = results
+            .filter(result => {
+              // If a category is specified, ensure the place belongs to that category
+              if (category) {
+                const validTypesForCategory = typeMapping[category];
+                // Check if any of the place's types match our category's valid types
+                return result.types?.some(placeType => validTypesForCategory.includes(placeType));
+              }
+              // If no category specified, just check against the requested types
+              return result.types?.some(placeType => types.includes(placeType));
+            })
+            .map(result => {
+              // Always use the category name for the type if available
+              let displayType: string;
+              if (category) {
+                // Capitalize the first letter of the category
+                displayType = category.charAt(0).toUpperCase() + category.slice(1);
+              } else {
+                // Find which category this type belongs to
+                const foundCategory = Object.entries(typeMapping).find(([_, types]) => 
+                  result.types?.some(placeType => types.includes(placeType))
+                );
+                displayType = foundCategory 
+                  ? foundCategory[0].charAt(0).toUpperCase() + foundCategory[0].slice(1)
+                  : formatAmenityType(type);
+              }
+
+              return {
+                id: result.place_id || '',
+                name: result.name || 'Unknown',
+                latitude: result.geometry?.location?.lat() || lat,
+                longitude: result.geometry?.location?.lng() || lon,
+                type: displayType,
+                website: undefined,
+                cuisine: undefined,
+                openingHours: undefined,
+                address: result.vicinity || undefined,
+                phone: undefined,
+                email: undefined,
+              };
+            });
           allPlaces = allPlaces.concat(places);
           console.log(`Found ${places.length} places for type ${type}`);
         } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
@@ -303,18 +323,8 @@ export const searchPlaces = async (
   type: ValidPOIType,
   radius: number = 1000
 ): Promise<Place[]> => {
-  const typeMapping: { [key in ValidPOIType]: string[] } = {
-    food: ['restaurant', 'cafe', 'meal_takeaway', 'bakery'],
-    bars: ['bar', 'night_club', 'pub'],
-    entertainment: ['movie_theater', 'bowling_alley', 'amusement_park', 'casino', 'arcade'],
-    shopping: ['clothing_store', 'shoe_store', 'jewelry_store', 'shopping_mall', 'boutique'],
-    arts: ['art_gallery', 'museum', 'theater'],
-    nature: ['park', 'campground', 'beach', 'national_park', 'hiking_trail'],
-    tourist: ['tourist_attraction', 'theme_park', 'aquarium', 'zoo', 'landmark']
-  };
-
   const types = typeMapping[type];
-  return searchNearby(lat, lon, radius, types);
+  return searchNearby(lat, lon, radius, types, 20, type);
 };
 
 /**
@@ -342,13 +352,31 @@ export const getPlaceDetails = async (placeId: string): Promise<any> => {
 export type ValidPOIType = 'food' | 'bars' | 'entertainment' | 'shopping' | 'arts' | 'nature' | 'tourist';
 
 const typeMapping: { [key in ValidPOIType]: string[] } = {
-  food: ['restaurant', 'cafe', 'meal_takeaway', 'bakery'],
-  bars: ['bar', 'night_club', 'pub'],
-  entertainment: ['movie_theater', 'bowling_alley', 'amusement_park', 'casino', 'arcade'],
-  shopping: ['clothing_store', 'shoe_store', 'jewelry_store', 'shopping_mall', 'boutique'],
-  arts: ['art_gallery', 'museum', 'theater'],
-  nature: ['park', 'campground', 'beach', 'national_park', 'hiking_trail'],
-  tourist: ['tourist_attraction', 'theme_park', 'aquarium', 'zoo', 'landmark']
+  food: ['restaurant', 'cafe', 'meal_takeaway', 'bakery', 'food', 'meal_delivery', 'ice_cream'],
+  bars: ['bar', 'night_club', 'pub', 'liquor_store', 'brewery'],
+  entertainment: [
+    'movie_theater', 'bowling_alley', 'amusement_park', 'casino', 'arcade',
+    'game_center', 'stadium', 'theater', 'concert_hall', 'performing_arts'
+  ],
+  shopping: [
+    'clothing_store', 'shoe_store', 'jewelry_store', 'shopping_mall', 'boutique',
+    'department_store', 'store', 'book_store',
+    'retail', 'shop', 'mall', 'outlet'
+  ],
+  arts: [
+    'art_gallery', 'museum', 'theater', 'library', 'cultural_center',
+    'exhibition_center', 'opera_house', 'concert_hall', 'gallery', 'arts_centre'
+  ],
+  nature: [
+    'park', 'campground', 'beach', 'national_park', 'hiking_trail',
+    'garden', 'forest', 'nature_reserve', 'botanical_garden', 'lake',
+    'trail', 'outdoor', 'viewpoint', 'natural_feature'
+  ],
+  tourist: [
+    'tourist_attraction', 'theme_park', 'aquarium', 'zoo', 'landmark',
+    'monument', 'historic_site', 'museum', 'gallery',
+    'sightseeing', 'observation_deck', 'historical'
+  ]
 };
 
 export const isValidPOIType = (type: string): type is ValidPOIType => {

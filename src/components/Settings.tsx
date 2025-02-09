@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -77,8 +77,6 @@ export default function Settings({
   setPoiTypes,
   findRestaurantsNearMe,
   isLoading,
-  searchPrecision = 'medium',
-  setSearchPrecision,
   findPOIsInView,
   findRandomPOI,
 }: SettingsProps) {
@@ -88,13 +86,6 @@ export default function Settings({
   const [countryOpen, setCountryOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
-
-  // Add effect to set all POI types only on initial mount
-  useEffect(() => {
-    if (!poiTypes || poiTypes.length === 0) {
-      setPoiTypes?.(['food', 'entertainment', 'nature']);
-    }
-  }, [poiTypes, setPoiTypes]);
 
   useEffect(() => {
     setCountries(Country.getAllCountries());

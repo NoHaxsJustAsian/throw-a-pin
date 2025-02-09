@@ -32,23 +32,6 @@ import {
 
 const landGeoJSONTyped = landGeoJSON as FeatureCollection;
 
-// Create custom icons
-const regularPin = L.divIcon({
-  html: '📍',
-  className: 'custom-pin',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-  popupAnchor: [0, -30],
-});
-
-const foodPin = L.divIcon({
-  html: '📍',
-  className: 'custom-pin food-pin',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-  popupAnchor: [0, -30],
-});
-
 const getLocationIcon = (type: string): string => {
   const lowerType = type.toLowerCase();
 
@@ -176,27 +159,6 @@ const CoordinateOverlay = ({ coordinates }: { coordinates: LatLngTuple | null })
   );
 };
 
-type ValidPOIType = 
-  | "food"            // 🍽️ Food
-  | "bars"            // 🍺 Bars & Nightlife
-  | "entertainment"   // 🎭 Entertainment
-  | "shopping"        // 🛍️ Shopping
-  | "arts"            // 🎨 Arts & Culture
-  | "nature"          // 🌳 Nature & Outdoors
-  | "tourist";        // 🎡 Tourist Attractions
-
-const isValidPOIType = (type: string): type is ValidPOIType => {
-  return [
-    "food",
-    "bars",
-    "entertainment",
-    "shopping",
-    "arts",
-    "nature",
-    "tourist"
-  ].includes(type);
-};
-
 const isLocationDuplicate = (
   newLocation: { latitude: number; longitude: number; name?: string },
   lastLocation: { coordinates: LatLngTuple; restaurant: any; poi: any } | null
@@ -266,12 +228,17 @@ export default function MainComponent() {
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [findRestaurant, setFindRestaurant] = useState(false);
-  const [restaurantRadius, setRestaurantRadius] = useState(2000);
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null);
   const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
   const [enablePOI, setEnablePOI] = useState(false);
   const [poiTypes, setPoiTypes] = useState<string[]>([]);
   const [selectedPOIs, setSelectedPOIs] = useState<any[]>([]);
+
+  // Set initial POI types only once on mount
+  useEffect(() => {
+    setPoiTypes(['food', 'entertainment', 'nature']);
+  }, []); // Empty dependency array means this only runs once on mount
+
   const [lastLocations, setLastLocations] = useState<Array<{
     coordinates: LatLngTuple;
     restaurant: any | null;
@@ -279,7 +246,6 @@ export default function MainComponent() {
     timestamp: number;
   }>>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const [searchPrecision, setSearchPrecision] = useState<'high' | 'medium' | 'low'>('medium');
 
   const generateRandomCityCoordinates = (): [number, number] => {
@@ -430,83 +396,6 @@ export default function MainComponent() {
     return null;
   };
 
-  const getSearchConfig = () => {
-    switch (searchPrecision) {
-      case 'high':
-        return { maxResults: 10, radiusMultiplier: 0.5 }; // 1km radius, fewer results
-      case 'low':
-        return { maxResults: 500, radiusMultiplier: 2.5 }; // 5km radius, all possible results
-      default: // medium
-        return { maxResults: 30, radiusMultiplier: 1.5 }; // 3km radius, moderate results
-    }
-  };
-
-  const searchForPOIs = async (coordinates: LatLngTuple): Promise<void> => {
-    if (!enablePOI || poiTypes.length === 0) return;
-
-    try {
-      setIsLoading(true);
-      const MAX_SEARCH_RADIUS = 50000; // 50km maximum search radius
-
-      // Search for POIs in all selected categories
-      const allPOIs = await Promise.all(
-        poiTypes.filter(isValidPOIType).map(type => 
-          searchPlaces(
-            coordinates[0],
-            coordinates[1],
-            type as ValidPOIType,
-            MAX_SEARCH_RADIUS
-          )
-        )
-      );
-
-      // Flatten and sort by distance from search coordinates
-      const sortedPOIs = allPOIs
-        .flat()
-        .sort((a, b) => {
-          const distA = Math.pow(a.latitude - coordinates[0], 2) + Math.pow(a.longitude - coordinates[1], 2);
-          const distB = Math.pow(b.latitude - coordinates[0], 2) + Math.pow(b.longitude - coordinates[1], 2);
-          return distA - distB;
-        });
-
-      if (sortedPOIs.length > 0) {
-        // Take the closest POI
-        const closestPOI = sortedPOIs[0];
-        setSelectedPOIs([closestPOI]);
-        setSelectedRestaurant(null); // Clear any selected restaurant
-        setCoordinates([closestPOI.latitude, closestPOI.longitude]);
-
-        // Calculate approximate distance in kilometers
-        const distance = Math.sqrt(
-          Math.pow((closestPOI.latitude - coordinates[0]) * 111, 2) + 
-          Math.pow((closestPOI.longitude - coordinates[1]) * 111 * Math.cos(coordinates[0] * Math.PI / 180), 2)
-        ).toFixed(1);
-        
-        toast({
-          title: "Found a Place!",
-          description: `${closestPOI.name} (${closestPOI.type}) - ${distance}km away`,
-          duration: 3000,
-        });
-      } else {
-        toast({
-          title: "No POIs found",
-          description: "No places found within 50km. Try different categories.",
-          duration: 3000,
-        });
-      }
-    } catch (error) {
-      console.error("Error finding POIs:", error);
-      toast({
-        title: "Error",
-        description: "Failed to find POIs. Please try again.",
-        variant: "destructive",
-        duration: 3000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleFindPOIsInView = async () => {
     if (!mapBounds) {
       toast({
@@ -609,55 +498,6 @@ export default function MainComponent() {
     }
   };
 
-  const searchForRestaurant = async (coordinates: LatLngTuple): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      const restaurantTags = [
-        'restaurant',
-        'fast_food',
-        'cafe',
-        'pub',
-        'bar',
-        'food_court',
-        'biergarten',
-        'ice_cream',
-        'food',
-        'deli'
-      ];
-      
-      const { maxResults, radiusMultiplier } = getSearchConfig();
-      const searchRadius = 2000 * radiusMultiplier;
-      
-      const restaurants = await searchNearby(
-        coordinates[0],
-        coordinates[1],
-        searchRadius,
-        restaurantTags,
-        maxResults
-      );
-
-      if (restaurants && restaurants.length > 0) {
-        const randomIndex = Math.floor(Math.random() * restaurants.length);
-        const restaurant = restaurants[randomIndex];
-        setSelectedRestaurant(restaurant);
-        setCoordinates([restaurant.latitude, restaurant.longitude]);
-        
-        toast({
-          title: "Found a place to eat!",
-          description: `${restaurant.name} (${restaurant.type || 'Food'})`,
-          duration: 3000,
-        });
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error("Error finding restaurant:", error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const throwNewPin = async () => {
     // Save current location before generating new one
     if (coordinates) {
@@ -743,65 +583,6 @@ export default function MainComponent() {
     );
     console.log(`Coordinate (${lat}, ${lng}) is on land: ${isInside}`);
     return isInside;
-  };
-
-  const handleFindRestaurantInArea = async () => {
-    if (!mapBounds) {
-      toast({
-        title: "Error",
-        description: "Please wait for the map to load completely.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-
-    // Save current location before searching
-    if (coordinates) {
-      setLastLocations(prev => {
-        const newLocations = [{
-          coordinates,
-          restaurant: selectedRestaurant,
-          poi: selectedPOIs[0] || null,
-          timestamp: Date.now()
-        }, ...prev].slice(0, 5);
-        return newLocations;
-      });
-    }
-
-    try {
-      setIsLoading(true);
-      const selectedPlace = await findRestaurantInArea(mapBounds, searchPrecision);
-
-      if (!selectedPlace) {
-        toast({
-          title: "No restaurants found",
-          description: "Try adjusting the search area or precision.",
-          duration: 3000,
-        });
-        return;
-      }
-
-      setSelectedRestaurant(selectedPlace);
-      setSelectedPOIs([]);
-      setCoordinates([selectedPlace.latitude, selectedPlace.longitude]);
-
-      toast({
-        title: "Found a restaurant!",
-        description: selectedPlace.name,
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Error finding restaurant:', error);
-      toast({
-        title: "Error",
-        description: "Failed to find restaurants. Please try again.",
-        variant: "destructive",
-        duration: 3000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleFindRestaurantsNearMe = async () => {
@@ -1465,8 +1246,3 @@ export default function MainComponent() {
     </div>
   );
 }
-
-// Helper function to get POI icons
-const getPOIIcon = (type: string): string => {
-  return getLocationIcon(type);
-};
