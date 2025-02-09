@@ -846,7 +846,12 @@ export default function MainComponent() {
                     <Button 
                       variant="outline" 
                       onClick={saveLocation} 
-                      className="h-8 px-3" 
+                      className= {cn(
+                        "h-8 px-3",
+                        theme === 'dark' 
+                          ? 'bg-gray-800 hover:bg-gray-700 text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-black'
+                      )}
                       disabled={isLoading}
                     >
                       Save Location
@@ -1017,7 +1022,12 @@ export default function MainComponent() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="w-full h-8 text-xs mt-2"
+                          className={cn(
+                        "w-full h-8 text-xs mt-2",
+                        theme === 'dark' 
+                          ? 'bg-gray-800 hover:bg-gray-700 text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-black'
+                      )}
                           asChild
                         >
                           <a 
