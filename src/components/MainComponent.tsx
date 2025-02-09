@@ -29,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { motion, AnimatePresence } from "framer-motion";
 
 const landGeoJSONTyped = landGeoJSON as FeatureCollection;
 
@@ -103,7 +104,7 @@ const RecenterMap: React.FC<{
       let zoomLevel = 4;
       
       if (isRestaurant || isPOI) {
-        zoomLevel = 14; // Changed from 16 to 14 for both restaurants and POIs
+        zoomLevel = 14;
       } else if (selectedCity) {
         zoomLevel = 13;
       } else if (selectedState) {
@@ -129,12 +130,12 @@ const RecenterMap: React.FC<{
         east: bounds.getEast(),
         west: bounds.getWest(),
       };
-      console.log('Map bounds updated:', boundsObj);
       onMapMoved?.(boundsObj);
     };
 
     map.on('moveend', handleMapMove);
     map.on('zoomend', handleMapMove);
+
     return () => {
       map.off('moveend', handleMapMove);
       map.off('zoomend', handleMapMove);
@@ -801,253 +802,257 @@ export default function MainComponent() {
     }
   }, [isRoadtripMode, toast]);
 
-  const handleMapClick = async (e: L.LeafletMouseEvent) => {
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please login to save locations",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { lat, lng } = e.latlng;
-    
-    // Prevent clicks below -60 degrees latitude
-    if (lat < -60) {
-      toast({
-        title: "Invalid Location",
-        description: "Location must be above -60° latitude",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setCoordinates([lat, lng]);
-    setSelectedRestaurant(null);
-    setSelectedPOIs([]);
-  };
-
   return (
-    <div className="h-screen pt-16 pb-4 px-4 sm:px-6 lg:px-8">
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      transition={{ duration: 0.5 }}
+      className="h-screen pt-16 pb-4 px-4 sm:px-6 lg:px-8"
+    >
       <div className="h-full w-full mx-auto">
         <div className="flex gap-8 h-full">
-          <div className="w-3/4 flex flex-col h-full">
-            <Card className="mb-4">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>Current Location</CardTitle>
-                    <CardDescription>
-                      {selectedRestaurant ? "Selected Restaurant" : "Randomly generated coordinates"}
-                    </CardDescription>
-                  </div>
-                  {user && (
-                    <Button 
-                      variant="outline" 
-                      onClick={saveLocation} 
-                      className="h-8 px-3" 
-                      disabled={isLoading}
-                    >
-                      Save Location
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="max-h-[400px] overflow-y-auto space-y-4">
-                {coordinates ? (
-                  <div className="grid grid-cols-5 gap-6">
-                    {/* Left Column - Coordinates */}
-                    <div className="col-span-2">
-                      <h3 className="text-sm font-medium mb-2">Coordinates</h3>
-                      <Card className="border-0 shadow-none bg-muted/50">
-                        <CardContent className="p-3 space-y-2">
-                          <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground flex items-center gap-2">
-                              <span className="font-medium">Latitude:</span> {coordinates && coordinates[0]?.toFixed(6)}
-                            </p>
-                            <p className="text-sm text-muted-foreground flex items-center gap-2">
-                              <span className="font-medium">Longitude:</span> {coordinates && coordinates[1]?.toFixed(6)}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
+          <motion.div 
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="w-3/4 flex flex-col h-full"
+          >
+            <motion.div
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <Card className="mb-4">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>Current Location</CardTitle>
+                      <CardDescription>
+                        {selectedRestaurant ? "Selected Restaurant" : "Randomly generated coordinates"}
+                      </CardDescription>
                     </div>
-
-                    {/* Right Column - Restaurant/POI Info */}
-                    <div className="col-span-3">
-                      <h3 className="text-sm font-medium mb-2">
-                        {selectedRestaurant
-                          ? "Restaurant Details"
-                          : selectedPOIs.length > 0
-                          ? "POI Details"
-                          : "Points of Interest"}
-                      </h3>
-                      {isLoading ? (
-                        <div className="flex items-center justify-center h-[140px] border rounded-md bg-card">
-                          <div className="flex items-center gap-3">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                            <span className="text-sm text-muted-foreground">Finding places...</span>
-                          </div>
-                        </div>
-                      ) : selectedRestaurant ? (
-                        <Card className="bg-card text-card-foreground border">
+                    {user && (
+                      <Button 
+                        variant="outline" 
+                        onClick={saveLocation} 
+                        className="h-8 px-3" 
+                        disabled={isLoading}
+                      >
+                        Save Location
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="max-h-[400px] overflow-y-auto space-y-4">
+                  {coordinates ? (
+                    <div className="grid grid-cols-5 gap-6">
+                      {/* Left Column - Coordinates */}
+                      <div className="col-span-2">
+                        <h3 className="text-sm font-medium mb-2">Coordinates</h3>
+                        <Card className="border-0 shadow-none bg-muted/50">
                           <CardContent className="p-3 space-y-2">
-                            <div className="space-y-0.5">
-                              <div className="flex justify-between items-start gap-2">
-                                <h2 className="text-base font-semibold">{selectedRestaurant.name}</h2>
-                                {selectedRestaurant.openingHours && (
-                                  <span className={cn(
-                                    "px-2 py-0.5 rounded-full text-xs font-medium",
-                                    checkIfOpen(selectedRestaurant.openingHours) 
-                                      ? "bg-green-500/20 text-green-500" 
-                                      : "bg-red-500/20 text-red-500"
-                                  )}>
-                                    {checkIfOpen(selectedRestaurant.openingHours) ? "Open Now" : "Closed"}
-                                  </span>
-                                )}
-                              </div>
-                              {selectedRestaurant.cuisine && (
-                                <p className="text-xs text-muted-foreground">Cuisine: {selectedRestaurant.cuisine}</p>
-                              )}
-                            </div>
-
                             <div className="space-y-1">
-                              <div className="flex items-start gap-2">
-                                <span className="text-base">📍</span>
-                                <p className="text-xs text-muted-foreground flex-1">
-                                  {selectedRestaurant.address}
-                                </p>
-                              </div>
-
-                              {selectedRestaurant.openingHours && (
-                                <div className="flex items-start gap-2">
-                                  <OpeningHours hours={selectedRestaurant.openingHours} />
-                                </div>
-                              )}
-                            </div>
-
-                            {selectedRestaurant.website && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="w-full h-8 text-xs"
-                                asChild
-                              >
-                                <a 
-                                  href={selectedRestaurant.website}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  Visit Website
-                                </a>
-                              </Button>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ) : selectedPOIs.length > 0 ? (
-                        <Card className="bg-card text-card-foreground border">
-                          <CardContent className="p-3 space-y-2">
-                            <div className="space-y-0.5">
-                              <div className="flex justify-between items-start gap-2">
-                                <h2 className="text-base font-semibold">{selectedPOIs[0].name}</h2>
-                                {selectedPOIs[0].openingHours && (
-                                  <span className={cn(
-                                    "px-2 py-0.5 rounded-full text-xs font-medium",
-                                    checkIfOpen(selectedPOIs[0].openingHours) 
-                                      ? "bg-green-500/20 text-green-500" 
-                                      : "bg-red-500/20 text-red-500"
-                                  )}>
-                                    {checkIfOpen(selectedPOIs[0].openingHours) ? "Open Now" : "Closed"}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground">Type: {normalizeLocationType(selectedPOIs[0].type)}</p>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex items-start gap-2">
-                                <span className="text-base">📍</span>
-                                <p className="text-xs text-muted-foreground flex-1">
-                                  {selectedPOIs[0].address}
-                                </p>
-                              </div>
-
-                              {selectedPOIs[0].openingHours && (
-                                <div className="flex items-start gap-2">
-                                  <OpeningHours hours={selectedPOIs[0].openingHours} />
-                                </div>
-                              )}
-                            </div>
-
-                            {selectedPOIs[0].website && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="w-full h-8 text-xs"
-                                asChild
-                              >
-                                <a 
-                                  href={selectedPOIs[0].website}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  Visit Website
-                                </a>
-                              </Button>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        <Card className="bg-card text-card-foreground border">
-                          <CardContent className="p-3">
-                            <div className="flex flex-col items-center justify-center text-center space-y-1.5 py-2">
-                              <span className="text-xl">🎯</span>
-                              <p className="text-sm font-medium">No Places Selected</p>
-                              <p className="text-xs text-muted-foreground">
-                                Use the settings panel to find restaurants or points of interest
+                              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <span className="font-medium">Latitude:</span> {coordinates && coordinates[0]?.toFixed(6)}
+                              </p>
+                              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <span className="font-medium">Longitude:</span> {coordinates && coordinates[1]?.toFixed(6)}
                               </p>
                             </div>
                           </CardContent>
                         </Card>
-                      )}
+                      </div>
 
-                      {/* Get Directions Button - Always visible when coordinates are available */}
-                      {coordinates && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full h-8 text-xs mt-2"
-                          asChild
-                        >
-                          <a 
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${
-                              selectedRestaurant?.address 
-                                ? encodeURIComponent(selectedRestaurant.address)
-                                : selectedPOIs[0]?.address
-                                ? encodeURIComponent(selectedPOIs[0].address)
-                                : `${coordinates[0]},${coordinates[1]}`
-                            }`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                      {/* Right Column - Restaurant/POI Info */}
+                      <div className="col-span-3">
+                        <h3 className="text-sm font-medium mb-2">
+                          {selectedRestaurant
+                            ? "Restaurant Details"
+                            : selectedPOIs.length > 0
+                            ? "POI Details"
+                            : "Points of Interest"}
+                        </h3>
+                        {isLoading ? (
+                          <div className="flex items-center justify-center h-[140px] border rounded-md bg-card">
+                            <div className="flex items-center gap-3">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                              <span className="text-sm text-muted-foreground">Finding places...</span>
+                            </div>
+                          </div>
+                        ) : selectedRestaurant ? (
+                          <Card className="bg-card text-card-foreground border">
+                            <CardContent className="p-3 space-y-2">
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-start gap-2">
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-base">{getLocationIcon(selectedRestaurant.type || 'restaurant')}</span>
+                                    <div>
+                                      <h2 className="text-base font-semibold">{selectedRestaurant.name}</h2>
+                                      {selectedRestaurant.cuisine && (
+                                        <p className="text-xs text-muted-foreground">Cuisine: {selectedRestaurant.cuisine}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {selectedRestaurant.openingHours && (
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded-full text-xs font-medium",
+                                      checkIfOpen(selectedRestaurant.openingHours) 
+                                        ? "bg-green-500/20 text-green-500" 
+                                        : "bg-red-500/20 text-red-500"
+                                    )}>
+                                      {checkIfOpen(selectedRestaurant.openingHours) ? "Open Now" : "Closed"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t space-y-2">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-base">📍</span>
+                                  <p className="text-xs text-muted-foreground flex-1">
+                                    {selectedRestaurant.address}
+                                  </p>
+                                </div>
+
+                                {selectedRestaurant.openingHours && (
+                                  <div className="flex items-start gap-2">
+                                    <OpeningHours hours={selectedRestaurant.openingHours} />
+                                  </div>
+                                )}
+                              </div>
+
+                              {selectedRestaurant.website && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="w-full h-8 text-xs mt-2"
+                                  asChild
+                                >
+                                  <a 
+                                    href={selectedRestaurant.website}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    Visit Website
+                                  </a>
+                                </Button>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ) : selectedPOIs.length > 0 ? (
+                          <Card className="bg-card text-card-foreground border">
+                            <CardContent className="p-3 space-y-2">
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-start gap-2">
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-base">{getLocationIcon(selectedPOIs[0].type)}</span>
+                                    <div>
+                                      <h2 className="text-base font-semibold">{selectedPOIs[0].name}</h2>
+                                      <p className="text-xs text-muted-foreground">Type: {normalizeLocationType(selectedPOIs[0].type)}</p>
+                                    </div>
+                                  </div>
+                                  {selectedPOIs[0].openingHours && (
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded-full text-xs font-medium",
+                                      checkIfOpen(selectedPOIs[0].openingHours) 
+                                        ? "bg-green-500/20 text-green-500" 
+                                        : "bg-red-500/20 text-red-500"
+                                    )}>
+                                      {checkIfOpen(selectedPOIs[0].openingHours) ? "Open Now" : "Closed"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t space-y-2">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-base">📍</span>
+                                  <p className="text-xs text-muted-foreground flex-1">
+                                    {selectedPOIs[0].address}
+                                  </p>
+                                </div>
+
+                                {selectedPOIs[0].openingHours && (
+                                  <div className="flex items-start gap-2">
+                                    <OpeningHours hours={selectedPOIs[0].openingHours} />
+                                  </div>
+                                )}
+                              </div>
+
+                              {selectedPOIs[0].website && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="w-full h-8 text-xs mt-2"
+                                  asChild
+                                >
+                                  <a 
+                                    href={selectedPOIs[0].website}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    Visit Website
+                                  </a>
+                                </Button>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ) : (
+                          <Card className="bg-card text-card-foreground border">
+                            <CardContent className="p-3">
+                              <div className="flex flex-col items-center justify-center text-center space-y-1.5 py-2">
+                                <span className="text-xl">🎯</span>
+                                <p className="text-sm font-medium">No Places Selected</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Use the settings panel to find restaurants or points of interest
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Get Directions Button - Always visible when coordinates are available */}
+                        {coordinates && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="w-full h-8 text-xs mt-2"
+                            asChild
                           >
-                            Get Directions
-                          </a>
-                        </Button>
-                      )}
+                            <a 
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${
+                                selectedRestaurant?.address 
+                                  ? encodeURIComponent(selectedRestaurant.address)
+                                  : selectedPOIs[0]?.address
+                                  ? encodeURIComponent(selectedPOIs[0].address)
+                                  : `${coordinates[0]},${coordinates[1]}`
+                              }`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Get Directions
+                            </a>
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center py-8 text-muted-foreground">
-                    <p>No location selected yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  ) : (
+                    <div className="flex items-center justify-center py-8 text-muted-foreground">
+                      <p>No location selected yet</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
 
             <Card className="flex-1">
               <CardContent className="p-0 h-full">
-                <div className="h-full w-full relative">
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  className="h-full w-full relative"
+                >
                   <CoordinateOverlay coordinates={coordinates} />
                   <MapContainer
                     center={[0, 0]}
@@ -1198,12 +1203,17 @@ export default function MainComponent() {
                       onMapMoved={setMapBounds}
                     />
                   </MapContainer>
-                </div>
+                </motion.div>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
 
-          <div className="w-1/4 space-y-6">
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="w-1/4 space-y-6"
+          >
             <Settings
               isLandOnly={isLandOnly}
               setIsLandOnly={setIsLandOnly}
@@ -1228,95 +1238,104 @@ export default function MainComponent() {
               setIsRoadtripMode={setIsRoadtripMode}
             />
 
-            {lastLocations.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>Previous Locations</CardTitle>
-                  <CardDescription>
-                    Recently viewed places
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="max-h-[400px] overflow-y-auto space-y-3">
-                  {lastLocations.map((location, index) => (
-                    <Card key={location.timestamp} className="border-0 shadow-none bg-muted/50">
-                      <CardContent className="p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-muted-foreground">
-                            {location.coordinates[0].toFixed(4)}, {location.coordinates[1].toFixed(4)}
-                          </p>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => {
-                              setCoordinates(location.coordinates);
-                              setSelectedRestaurant(location.restaurant);
-                              setSelectedPOIs(location.poi ? [location.poi] : []);
-                            }}
-                          >
-                            Return
-                          </Button>
-                        </div>
-                        {location.restaurant && (
-                          <div className="bg-card text-card-foreground rounded-md p-3 border">
-                            <div className="flex justify-between items-start gap-2">
-                              <h3 className="text-sm font-semibold truncate">
-                                {location.restaurant.name}
-                              </h3>
-                              {location.restaurant.openingHours && (
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-xs font-medium",
-                                  checkIfOpen(location.restaurant.openingHours) 
-                                    ? "bg-green-500/20 text-green-500" 
-                                    : "bg-red-500/20 text-red-500"
-                                )}>
-                                  {checkIfOpen(location.restaurant.openingHours) ? "Open" : "Closed"}
-                                </span>
-                              )}
-                            </div>
-                            {location.restaurant.cuisine && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {location.restaurant.cuisine}
+            <AnimatePresence>
+              {lastLocations.length > 0 && (
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 20, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle>Previous Locations</CardTitle>
+                      <CardDescription>
+                        Recently viewed places
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="max-h-[400px] overflow-y-auto space-y-3">
+                      {lastLocations.map((location, index) => (
+                        <Card key={location.timestamp} className="border-0 shadow-none bg-muted/50">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-muted-foreground">
+                                {location.coordinates[0].toFixed(4)}, {location.coordinates[1].toFixed(4)}
                               </p>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="h-6 px-2"
+                                onClick={() => {
+                                  setCoordinates(location.coordinates);
+                                  setSelectedRestaurant(location.restaurant);
+                                  setSelectedPOIs(location.poi ? [location.poi] : []);
+                                }}
+                              >
+                                Return
+                              </Button>
+                            </div>
+                            {location.restaurant && (
+                              <div className="bg-card text-card-foreground rounded-md p-3 border">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h3 className="text-sm font-semibold truncate">
+                                    {location.restaurant.name}
+                                  </h3>
+                                  {location.restaurant.openingHours && (
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded-full text-xs font-medium",
+                                      checkIfOpen(location.restaurant.openingHours) 
+                                        ? "bg-green-500/20 text-green-500" 
+                                        : "bg-red-500/20 text-red-500"
+                                    )}>
+                                      {checkIfOpen(location.restaurant.openingHours) ? "Open" : "Closed"}
+                                    </span>
+                                  )}
+                                </div>
+                                {location.restaurant.cuisine && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {location.restaurant.cuisine}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-1 mt-2">
+                                  <span className="text-sm">📍</span>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {location.restaurant.address}
+                                  </p>
+                                </div>
+                              </div>
                             )}
-                            <div className="flex items-center gap-1 mt-2">
-                              <span className="text-sm">📍</span>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {location.restaurant.address}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        {location.poi && (
-                          <div className="bg-card text-card-foreground rounded-md p-3 border">
-                            <div className="flex justify-between items-start gap-2">
-                              <h3 className="text-sm font-semibold truncate">
-                                {location.poi.name}
-                              </h3>
-                              {location.poi.openingHours && (
-                                <OpeningHours hours={location.poi.openingHours} />
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {normalizeLocationType(location.poi.type)}
-                            </p>
-                            <div className="flex items-center gap-1 mt-2">
-                              <span className="text-sm">{getLocationIcon(location.poi.type)}</span>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {location.poi.address}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                            {location.poi && (
+                              <div className="bg-card text-card-foreground rounded-md p-3 border">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h3 className="text-sm font-semibold truncate">
+                                    {location.poi.name}
+                                  </h3>
+                                  {location.poi.openingHours && (
+                                    <OpeningHours hours={location.poi.openingHours} />
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {normalizeLocationType(location.poi.type)}
+                                </p>
+                                <div className="flex items-center gap-1 mt-2">
+                                  <span className="text-sm">{getLocationIcon(location.poi.type)}</span>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {location.poi.address}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
