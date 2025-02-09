@@ -83,13 +83,25 @@ function ScrollingGlobe() {
       if (isTransitioning) {
         // Final animation state before transitioning to map
         const progress = Math.min(1, (Date.now() - transitionStartTime.current) / 1000);
-        globeRef.current.position.x = lerp(-1.8, 0, progress);
-        globeRef.current.position.y = lerp(0, 0, progress);
-        globeRef.current.scale.setScalar(lerp(1.1, 2, progress));
+        const currentX = globeRef.current.position.x;
+        const currentScale = globeRef.current.scale.x;
+        
+        // Add easing to make the transition smoother
+        const easeProgress = 1 - Math.pow(1 - progress, 2); // Changed from cubic to quadratic easing
+        
+        // Add faster rotation during transition
+        globeRef.current.rotation.y += 0.05; // Reduced from 0.1 to 0.05
+        wireframeRef.current.rotation.y = globeRef.current.rotation.y;
+        
+        // Smoothly transition from current position/scale to final position/scale with a gentler curve
+        const positionEase = 1 - Math.pow(1 - progress, 2.5); // Slightly different easing for position
+        globeRef.current.position.x = lerp(currentX, 0, positionEase);
+        globeRef.current.position.y = lerp(0, 0, easeProgress);
+        globeRef.current.scale.setScalar(lerp(currentScale, 2, easeProgress));
         wireframeRef.current.position.x = globeRef.current.position.x;
         wireframeRef.current.position.y = globeRef.current.position.y;
         wireframeRef.current.scale.setScalar(globeRef.current.scale.x);
-        camera.position.z = lerp(5, 3, progress);
+        camera.position.z = lerp(5, 3, easeProgress);
         return;
       }
 
@@ -120,10 +132,15 @@ function ScrollingGlobe() {
         newX = lerp(0, -1.8, thirdSectionProgress);
         newY = lerp(0, 0, thirdSectionProgress);
         scale = lerp(1, 1.1, thirdSectionProgress);
-      } else { // Final section - maintain position for connect and discover sections
+      } else if (offset < 0.85) { // Maintain position for connect, discover, and features sections
         newX = -1.8;
         newY = 0;
         scale = 1.1;
+      } else { // Final get started section - move globe off screen and make it larger
+        const finalSectionProgress = (offset - 0.85) / 0.15;
+        newX = lerp(-1.8, -3.5, finalSectionProgress);
+        newY = 0;
+        scale = lerp(1.1, 1.8, finalSectionProgress);
       }
       
       globeRef.current.position.x = newX;
@@ -160,7 +177,7 @@ function ScrollingGlobe() {
       transitionStartTime.current = Date.now();
       const timer = setTimeout(() => {
         navigate('/map');
-      }, 1000); // Navigate after 1 second
+      }, 200); // Change pages even sooner
       return () => clearTimeout(timer);
     }
   }, [isTransitioning, navigate]);
