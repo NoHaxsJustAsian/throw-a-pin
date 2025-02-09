@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+      // Preserve the entire hash fragment for Supabase auth
+      sessionStorage.setItem('spa_redirect', window.location.pathname + window.location.hash);
+      window.location.replace('/');
+    </script>
+  </head>
+  <body>
+    Redirecting...
+  </body>
+</html> 
