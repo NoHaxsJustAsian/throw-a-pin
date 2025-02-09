@@ -319,19 +319,38 @@ export default function MainComponent() {
   }, []);
 
   const saveLocation = async () => {
-    if (!user || !coordinates) return;
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to save locations",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (!coordinates) return;
 
     try {
-      const { error } = await supabase.from("locations").insert([
-        {
-          user_id: user.id,
-          latitude: coordinates[0],
-          longitude: coordinates[1],
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      // Get the current location details
+      const locationData = {
+        user_id: user.id,
+        name: selectedRestaurant?.name || selectedPOIs[0]?.name || null,
+        address: selectedRestaurant?.address || selectedPOIs[0]?.address || null,
+        coord_x: coordinates[1], // longitude
+        coord_y: coordinates[0], // latitude
+        created_at: new Date().toISOString(),
+        place_type: selectedRestaurant 
+          ? 'restaurant'
+          : selectedPOIs[0]?.type || null
+      };
+
+      const { error } = await supabase
+        .from("places")
+        .insert([locationData]);
 
       if (error) throw error;
+
       toast({
         title: "Success",
         description: "Location saved successfully!",
@@ -1003,7 +1022,7 @@ export default function MainComponent() {
                   <MapContainer
                     center={[0, 0]}
                     zoom={2}
-                    style={{ height: "100%", width: "100%" }}
+                    className="h-screen w-full z-10"
                     zoomControl={false}
                   >
                     <ZoomControl position="topright" />

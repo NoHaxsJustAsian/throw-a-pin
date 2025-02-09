@@ -21,7 +21,7 @@ export default function App() {
             <Route path="/saved" element={<PlacesPage />} />
             <Route path="/history" element={<History />} />
           </Routes>
-          <Toaster />
+          <Toaster className="z-[9999]" />
         </div>    
       </Router>
     </ThemeProvider>
