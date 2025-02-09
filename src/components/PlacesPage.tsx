@@ -789,7 +789,9 @@ function PlacesPageContent() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent 
                                 className="w-56" 
-                                align="end"
+                                align="start"
+                                side="left"
+                                sideOffset={5}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <DropdownMenuLabel>Add to Collection</DropdownMenuLabel>
