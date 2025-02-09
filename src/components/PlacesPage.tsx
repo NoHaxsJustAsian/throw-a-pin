@@ -1,61 +1,240 @@
+import { useState, useEffect } from "react"
 import PlacesGrid from "./PlacesGrid"
-import { PlacesSaveBar } from "@/components/PlacesSaveBar"
-import { useState } from "react"
-import { Place } from "@/lib/supabase"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Plus, MoreVertical, Trash2 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/hooks/useAuth"
+import { useToast } from "@/hooks/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-interface SavedPlacesList {
+interface Collection {
   id: string;
   name: string;
-  places: Place[];
+  user_id: string;
+  created_at: string;
+}
+
+interface PlacesPageProps {
+  selectedCollections: Collection[];
+  onCollectionToggle: (collection: Collection) => void;
 }
 
 export default function PlacesPage() {
-  const [savedLists, setSavedLists] = useState<SavedPlacesList[]>([]);
-  const [selectedListId, setSelectedListId] = useState<string>();
+  const [collections, setCollections] = useState<Collection[]>([])
+  const [selectedCollections, setSelectedCollections] = useState<Collection[]>([])
+  const [newCollectionName, setNewCollectionName] = useState("")
+  const { user } = useAuth()
+  const { toast } = useToast()
 
-  const handleCreateList = (name: string) => {
-    const newList: SavedPlacesList = {
-      id: `list-${Date.now()}`,
-      name,
-      places: []
-    };
-    setSavedLists([...savedLists, newList]);
-    setSelectedListId(newList.id);
-  };
+  useEffect(() => {
+    if (user) {
+      fetchCollections()
+    }
+  }, [user])
 
-  const handleAddPlaceToList = (place: Place) => {
-    if (!selectedListId) return;
+  const fetchCollections = async () => {
+    if (!user) return
     
-    setSavedLists(savedLists.map(list => {
-      if (list.id === selectedListId) {
-        // Don't add if already in the list
-        if (list.places.some(p => p.id === place.id)) {
-          return list;
-        }
-        return {
-          ...list,
-          places: [...list.places, place]
-        };
+    try {
+      const { data, error } = await supabase
+        .from("collections")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+      setCollections(data || [])
+    } catch (error) {
+      console.error("Error fetching collections:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load collections",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const createCollection = async () => {
+    if (!user || !newCollectionName.trim()) return
+
+    try {
+      const { data, error } = await supabase
+        .from("collections")
+        .insert([
+          {
+            name: newCollectionName.trim(),
+            user_id: user.id,
+          },
+        ])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setCollections([data, ...collections])
+      setNewCollectionName("")
+      toast({
+        title: "Success",
+        description: "Collection created successfully",
+      })
+    } catch (error) {
+      console.error("Error creating collection:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create collection",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const toggleCollection = (collection: Collection) => {
+    setSelectedCollections(prev => {
+      const isSelected = prev.some(c => c.id === collection.id);
+      if (isSelected) {
+        return prev.filter(c => c.id !== collection.id);
+      } else {
+        return [...prev, collection];
       }
-      return list;
-    }));
+    });
   };
 
-  console.log("PlacesPage rendered");
-  
+  const deleteCollection = async (collectionId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("collections")
+        .delete()
+        .eq("id", collectionId)
+
+      if (error) throw error;
+
+      setCollections(collections.filter(c => c.id !== collectionId));
+      setSelectedCollections(selected => selected.filter(c => c.id !== collectionId));
+
+      toast({
+        title: "Success",
+        description: "Collection deleted successfully",
+      })
+    } catch (error) {
+      console.error("Error deleting collection:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete collection",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Places</h1>
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex flex-col flex-grow">
-          <PlacesGrid />
+    <div className="min-h-screen pt-16 container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Saved Locations</h1>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Collection
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Collection</DialogTitle>
+            </DialogHeader>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Collection name"
+                value={newCollectionName}
+                onChange={(e) => setNewCollectionName(e.target.value)}
+              />
+              <Button onClick={createCollection}>Create</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+      
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="w-full md:w-64 space-y-2">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold">Your Collections</h2>
+            {selectedCollections.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setSelectedCollections([])}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {collections.map((collection) => (
+            <div key={collection.id} className="space-y-1">
+              <div className="flex gap-2">
+                <Button
+                  variant={selectedCollections.some(c => c.id === collection.id) ? "default" : "outline"}
+                  className="w-full justify-start text-left"
+                  onClick={() => toggleCollection(collection)}
+                >
+                  <span className="truncate">{collection.name}</span>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const shareUrl = `${window.location.origin}/lists/${collection.id}`;
+                        navigator.clipboard.writeText(shareUrl);
+                        toast({
+                          title: "Link Copied",
+                          description: "Share link has been copied to clipboard",
+                        });
+                      }}
+                    >
+                      Copy Share Link
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => deleteCollection(collection.id)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Collection
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))}
+          {collections.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No collections yet. Create one to get started!
+            </p>
+          )}
         </div>
-        <PlacesSaveBar 
-          savedLists={savedLists} 
-          onCreateList={handleCreateList} 
-          onSelectList={setSelectedListId}
-          selectedListId={selectedListId}
-        />
+        
+        <div className="flex-1">
+          <PlacesGrid 
+            selectedCollections={selectedCollections}
+            onAddToCollection={fetchCollections}
+            collections={collections}
+          />
+        </div>
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import MainComponent from "@/components/MainComponent";
 import History from "@/pages/History";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
+import SharedList from "@/pages/SharedList";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/saved" element={<PlacesPage />} />
             <Route path="/history" element={<History />} />
+            <Route path="/lists/:id" element={<SharedList />} />
           </Routes>
           <Toaster className="z-[9999]" />
         </div>    
