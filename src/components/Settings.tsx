@@ -38,8 +38,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ThemeToggle } from './theme-toggle';
-import { useTheme } from "next-themes"
 
 interface SettingsProps {
   isLandOnly: boolean;
@@ -86,7 +84,6 @@ export default function Settings({
   isRoadtripMode = false,
   setIsRoadtripMode,
 }: SettingsProps) {
-  const { theme } = useTheme()
   const [countries, setCountries] = useState<ICountry[]>([]);
   const [states, setStates] = useState<IState[]>([]);
   const [cities, setCities] = useState<ICity[]>([]);
@@ -129,22 +126,6 @@ export default function Settings({
       setPrecision(0); // World level: ~100km precision
     }
   }, [selectedCity, selectedState, selectedCountry, setPrecision]);
-
-  // Update button styles
-  const buttonStyle = cn(
-    "h-20 flex flex-col items-center justify-center space-y-1 w-full",
-    theme === 'dark' 
-      ? 'bg-gray-800 hover:bg-gray-700 text-white' 
-      : 'bg-gray-100 hover:bg-gray-200 text-black'
-  )
-
-  // Update selector button styles
-  const selectorStyle = cn(
-    "w-full justify-between",
-    theme === 'dark'
-      ? 'bg-gray-800 hover:bg-gray-700 text-white'
-      : 'bg-gray-100 hover:bg-gray-200 text-black'
-  )
 
   return (
     <Card className="shadow-sm">
@@ -203,7 +184,7 @@ export default function Settings({
                         variant="outline"
                         role="combobox"
                         aria-expanded={countryOpen}
-                        className={selectorStyle}
+                        className="w-full justify-between"
                       >
                         {selectedCountry
                           ? countries.find((country) => country.isoCode === selectedCountry)?.name
@@ -266,7 +247,7 @@ export default function Settings({
                           variant="outline"
                           role="combobox"
                           aria-expanded={stateOpen}
-                          className={selectorStyle}
+                          className="w-full justify-between"
                         >
                           {selectedState
                             ? states.find((state) => state.isoCode === selectedState)?.name
@@ -330,7 +311,7 @@ export default function Settings({
                           variant="outline"
                           role="combobox"
                           aria-expanded={cityOpen}
-                          className={selectorStyle}
+                          className="w-full justify-between"
                         >
                           {selectedCity || "Select city..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -436,7 +417,8 @@ export default function Settings({
           <div className="grid grid-cols-2 gap-2">
             <Button 
               onClick={throwNewPin} 
-              className={buttonStyle}
+              className="h-20 flex flex-col items-center justify-center space-y-1"
+              variant="outline"
               disabled={isLoading}
             >
               <span className="text-2xl">📍</span>
@@ -458,7 +440,8 @@ export default function Settings({
                 <TooltipTrigger asChild>
                   <Button 
                     onClick={findRandomPOI}
-                    className={buttonStyle}
+                    className="h-20 flex flex-col items-center justify-center space-y-1 w-full"
+                    variant="outline"
                     disabled={isLoading || !poiTypes?.length}
                   >
                     <span className="text-2xl">🎯</span>
@@ -478,7 +461,8 @@ export default function Settings({
                 <TooltipTrigger asChild>
                   <Button 
                     onClick={findPOIsInView}
-                    className={buttonStyle}
+                    className="h-20 flex flex-col items-center justify-center space-y-1 w-full"
+                    variant="outline"
                     disabled={isLoading || !poiTypes?.length}
                   >
                     <span className="text-2xl">🔍</span>
