@@ -3,11 +3,10 @@ import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Place } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { getLocationDetails } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Copy } from "lucide-react"
+import { Copy, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
@@ -30,17 +29,39 @@ const pinIcon = L.divIcon({
   popupAnchor: [0, -28]
 });
 
-interface PlaceWithLoadingName extends Place {
-  isLoadingName?: boolean;
+interface PlaceResponse {
+  place: {
+    id: number;
+    name: string | null;
+    address: string | null;
+    latitude: number;
+    longitude: number;
+    place_type: string | null;
+  };
+  place_id: number;
+  collection_id: string;
+}
+
+interface Place {
+  id: number;
+  name: string | null;
+  address: string | null;
+  latitude: number;
+  longitude: number;
+  place_type: string | null;
   locationString?: string;
 }
 
+interface PlaceWithLoadingName extends Place {
+  isLoadingName?: boolean;
+}
+
 interface SharedCollection {
-  id: string
-  name: string
-  user_id: string
-  created_at: string
-  places: PlaceWithLoadingName[]
+  id: string;
+  name: string;
+  user_id: string;
+  created_at: string;
+  places: PlaceWithLoadingName[];
 }
 
 export default function SharedList() {
@@ -50,6 +71,7 @@ export default function SharedList() {
   const { toast } = useToast()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   useEffect(() => {
     fetchCollection()
@@ -97,9 +119,9 @@ export default function SharedList() {
       if (placesData) {
         // Initialize all places with loading state
         const places = placesData.map(item => ({
-          ...item.place,
-          isLoadingName: true,
-          locationString: item.place.name || 'Loading location...'
+          ...(item.place as unknown as Place),
+          isLoadingName: !(item.place as any).name && !(item.place as any).address,
+          locationString: (item.place as any).name || `${(item.place as any).latitude.toFixed(4)}, ${(item.place as any).longitude.toFixed(4)}`
         }));
 
         // Set collection immediately with loading states
@@ -272,88 +294,83 @@ export default function SharedList() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-16 flex items-center justify-center">
-        <p className="text-lg">Loading collection...</p>
-      </div>
-    )
-  }
-
-  if (!collection) {
-    return (
-      <div className="min-h-screen pt-16 flex items-center justify-center">
-        <p className="text-lg">Collection not found</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen pt-16 container mx-auto p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8 p-6 bg-card border rounded-lg shadow-sm">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold mb-3">{collection.name}</h1>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-sm">
-                  {collection.places.length} {collection.places.length === 1 ? 'place' : 'places'}
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  • Shared List
-                </span>
-              </div>
+    <div className="min-h-screen">
+      <div className="h-[calc(100vh-64px)] mt-16">
+        <div className="container mx-auto p-4">
+          {loading ? (
+            <div className="flex items-center justify-center h-[60vh]">
+              <p className="text-lg">Loading collection...</p>
             </div>
-            {user && user.id !== collection.user_id && (
-              <Button onClick={cloneCollection} className="gap-2" size="lg">
-                <Copy className="h-5 w-5" />
-                Clone List
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {collection.places.length > 0 && renderMap()}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {collection.places.map((place) => (
-            <Card 
-              key={place.id} 
-              className="relative group border hover:border-primary/20 transition-colors"
-            >
-              <CardHeader>
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {place.place_type || 'Destination'}
-                  </Badge>
+          ) : collection ? (
+            <>
+              <div className="mb-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-2xl font-bold">{collection.name}</h1>
+                  <Badge variant="secondary">Shared List</Badge>
                 </div>
-                <CardTitle className={cn(
-                  "line-clamp-2",
-                  place.isLoadingName && "animate-pulse"
-                )}>
-                  {place.locationString || 'Unnamed Location'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {place.address && (
-                  <p className="text-sm text-muted-foreground">
-                    {place.address}
-                  </p>
-                )}
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/50"></span>
-                  {place.latitude.toFixed(6)}, {place.longitude.toFixed(6)}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-sm">
+                    {collection.places.length} {collection.places.length === 1 ? 'place' : 'places'}
+                  </Badge>
+                  {user && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={cloneCollection}
+                      className="gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Clone Collection
+                    </Button>
+                  )}
+                </div>
+              </div>
 
-        {collection.places.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">This collection is empty</p>
-          </div>
-        )}
+              {renderMap()}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-4">
+                {collection.places.map((place) => (
+                  <Card key={place.id} className="relative group">
+                    {place.isLoadingName ? (
+                      <div className="flex flex-col items-center justify-center p-8">
+                        <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                        <p className="text-sm text-muted-foreground">Loading location...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <CardHeader>
+                          <div>
+                            <Badge variant="secondary" className="w-fit text-xs">
+                              {place.place_type || 'Destination'}
+                            </Badge>
+                            <CardTitle className="line-clamp-2 mt-2">
+                              {place.locationString || `${place.latitude.toFixed(4)}, ${place.longitude.toFixed(4)}`}
+                            </CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {place.address && (
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {place.address}
+                            </p>
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            Coordinates: {place.latitude}, {place.longitude}
+                          </p>
+                        </CardContent>
+                      </>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-[60vh]">
+              <p className="text-lg">Collection not found</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

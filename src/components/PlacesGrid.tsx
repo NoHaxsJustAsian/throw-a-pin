@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { supabase, Place } from "@/lib/supabase"
+import { supabase, Place, Collection } from "@/lib/supabase"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +24,12 @@ interface PlacesGridProps {
   selectedCollections: Collection[];
   onAddToCollection: () => void;
   collections: Collection[];
+}
+
+interface CollectionPlaceItem {
+  place_id: number;
+  collection_id: string;
+  place: Place;
 }
 
 export default function PlacesGrid({ 
@@ -97,40 +102,23 @@ export default function PlacesGrid({
       if (error) throw error;
 
       if (data) {
-        // Set places immediately with existing data
+        // Set places immediately with loading state
         setPlaces(data.map(place => ({
           ...place,
-          locationString: place.name || place.address || 'Loading location...'
+          locationString: place.name || 'Loading location...'
         })));
         setLoading(false);
 
-        // Only fetch location details for places without an address
+        // Then fetch location details in background
         data.forEach(async (place, index) => {
-          if (!place.name && !place.address) {
-            const locationInfo = await getLocationDetails(place.latitude, place.longitude);
-            
-            // Update both locationString and address in the database
-            if (locationInfo.address) {
-              const { error: updateError } = await supabase
-                .from("places")
-                .update({ 
-                  address: locationInfo.address,
-                  name: locationInfo.locationString 
-                })
-                .eq("id", place.id);
-
-              if (updateError) {
-                console.error("Error updating place:", updateError);
-              }
-            }
-
+          if (!place.name) {
+            const locationString = await getLocationDetails(place.latitude, place.longitude);
             setPlaces(prev => {
               const updated = [...prev];
-              updated[index] = { 
-                ...updated[index], 
-                locationString: locationInfo.locationString,
-                address: locationInfo.address || updated[index].address
-              };
+              updated[index] = {
+                ...updated[index],
+                locationString: locationString.locationString
+              } as Place & { locationString?: string };
               return updated;
             });
           }
@@ -158,9 +146,9 @@ export default function PlacesGrid({
 
       if (data) {
         const uniquePlaces = Array.from(
-          new Map(data.map(item => [item.place.id, item.place])).values()
-        );
-        const placeIds = data.map(item => item.place_id);
+          new Map((data as unknown as CollectionPlaceItem[]).map(item => [item.place.id, item.place])).values()
+        ) as unknown as Place[];
+        const placeIds = (data as unknown as CollectionPlaceItem[]).map(item => item.place_id);
 
         // Set places immediately with loading state
         setPlaces(uniquePlaces.map(place => ({
@@ -176,7 +164,10 @@ export default function PlacesGrid({
             const locationString = await getLocationDetails(place.latitude, place.longitude);
             setPlaces(prev => {
               const updated = [...prev];
-              updated[index] = { ...updated[index], locationString };
+              updated[index] = {
+                ...updated[index],
+                locationString: locationString.locationString
+              } as Place & { locationString?: string };
               return updated;
             });
           }

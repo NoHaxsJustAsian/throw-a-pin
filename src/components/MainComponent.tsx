@@ -829,11 +829,11 @@ export default function MainComponent() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-      <div className="w-full mx-auto">
-        <div className="flex gap-8">
-          <div className="w-3/4">
-            <Card>
+    <div className="h-screen pt-16 pb-4 px-4 sm:px-6 lg:px-8">
+      <div className="h-full w-full mx-auto">
+        <div className="flex gap-8 h-full">
+          <div className="w-3/4 flex flex-col h-full">
+            <Card className="mb-4">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div>
@@ -1045,14 +1045,14 @@ export default function MainComponent() {
               </CardContent>
             </Card>
 
-            <Card className="mt-8">
-              <CardContent className="p-0">
-                <div className="h-[600px] w-full relative">
+            <Card className="flex-1">
+              <CardContent className="p-0 h-full">
+                <div className="h-full w-full relative">
                   <CoordinateOverlay coordinates={coordinates} />
                   <MapContainer
                     center={[0, 0]}
                     zoom={2}
-                    className="h-screen w-full z-10"
+                    className="h-full w-full z-10"
                     zoomControl={false}
                   >
                     <ZoomControl position="topright" />
