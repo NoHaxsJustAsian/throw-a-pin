@@ -19,3 +19,4 @@ export type Place = {
   openingHours?: string
   placeType?: string
 }
+
