@@ -76,7 +76,7 @@ function ScrollingGlobe() {
       // Set new timeout for auto-rotation
       scrollTimeout.current = setTimeout(() => {
         setAutoRotate(true);
-      }, 500);
+      }, 0);
     }
 
     if (globeRef.current && wireframeRef.current) {
