@@ -349,20 +349,14 @@ function HeroCards() {
         </div>
 
         {/* Video preview */}
-        <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden">
+        <div className="w-full h-full bg-muted rounded-lg overflow-hidden">
           <video
-            src="/mapdemoblack.mp4"
+            src="/connectblackdemo.mp4"
             className="w-full h-full object-cover"
             autoPlay
             muted
             loop
             playsInline
-            style={{ opacity: 0 }}
-            onCanPlay={(e) => {
-              const video = e.target as HTMLVideoElement;
-              video.style.opacity = '1';
-              video.style.transition = 'opacity 0.5s ease-in-out';
-            }}
           />
         </div>
       </motion.div>
