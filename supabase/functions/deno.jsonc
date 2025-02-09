@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window"]
+  },
+  "imports": {
+    "http/": "https://deno.land/std@0.168.0/http/"
+  }
+} 
