@@ -97,20 +97,40 @@ export default function PlacesGrid({
       if (error) throw error;
 
       if (data) {
-        // Set places immediately with loading state
+        // Set places immediately with existing data
         setPlaces(data.map(place => ({
           ...place,
-          locationString: place.name || 'Loading location...'
+          locationString: place.name || place.address || 'Loading location...'
         })));
         setLoading(false);
 
-        // Then fetch location details in background
+        // Only fetch location details for places without an address
         data.forEach(async (place, index) => {
-          if (!place.name) {
-            const locationString = await getLocationDetails(place.latitude, place.longitude);
+          if (!place.name && !place.address) {
+            const locationInfo = await getLocationDetails(place.latitude, place.longitude);
+            
+            // Update both locationString and address in the database
+            if (locationInfo.address) {
+              const { error: updateError } = await supabase
+                .from("places")
+                .update({ 
+                  address: locationInfo.address,
+                  name: locationInfo.locationString 
+                })
+                .eq("id", place.id);
+
+              if (updateError) {
+                console.error("Error updating place:", updateError);
+              }
+            }
+
             setPlaces(prev => {
               const updated = [...prev];
-              updated[index] = { ...updated[index], locationString };
+              updated[index] = { 
+                ...updated[index], 
+                locationString: locationInfo.locationString,
+                address: locationInfo.address || updated[index].address
+              };
               return updated;
             });
           }
