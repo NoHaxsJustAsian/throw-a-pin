@@ -19,7 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Country, State, City } from 'country-state-city';
-import { searchNearby, searchPlaces, checkIfOpen, findRestaurantInArea, findRestaurantsNearMe, findRandomPOI, findPOI, findPOIInView } from "@/lib/overpass";
+import { checkIfOpen, findRestaurantsNearMe, findRandomPOI, findPOI, findPOIInView } from "@/lib/overpass";
 import L from 'leaflet';
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -855,38 +855,22 @@ export default function MainComponent() {
                               )}
                             </div>
 
-                            <div className="flex gap-2">
+                            {selectedRestaurant.website && (
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                className="flex-1 h-8 text-xs"
+                                className="w-full h-8 text-xs"
                                 asChild
                               >
                                 <a 
-                                  href={`https://www.google.com/maps/dir/?api=1&destination=${selectedRestaurant.latitude},${selectedRestaurant.longitude}`}
+                                  href={selectedRestaurant.website}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
-                                  Get Directions
+                                  Visit Website
                                 </a>
                               </Button>
-                              {selectedRestaurant.website && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="flex-1 h-8 text-xs"
-                                  asChild
-                                >
-                                  <a 
-                                    href={selectedRestaurant.website}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    Visit Website
-                                  </a>
-                                </Button>
-                              )}
-                            </div>
+                            )}
                           </CardContent>
                         </Card>
                       ) : selectedPOIs.length > 0 ? (
@@ -924,38 +908,22 @@ export default function MainComponent() {
                               )}
                             </div>
 
-                            <div className="flex gap-2">
+                            {selectedPOIs[0].website && (
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                className="flex-1 h-8 text-xs"
+                                className="w-full h-8 text-xs"
                                 asChild
                               >
                                 <a 
-                                  href={`https://www.google.com/maps/dir/?api=1&destination=${selectedPOIs[0].latitude},${selectedPOIs[0].longitude}`}
+                                  href={selectedPOIs[0].website}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
-                                  Get Directions
+                                  Visit Website
                                 </a>
                               </Button>
-                              {selectedPOIs[0].website && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="flex-1 h-8 text-xs"
-                                  asChild
-                                >
-                                  <a 
-                                    href={selectedPOIs[0].website}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    Visit Website
-                                  </a>
-                                </Button>
-                              )}
-                            </div>
+                            )}
                           </CardContent>
                         </Card>
                       ) : (
@@ -970,6 +938,30 @@ export default function MainComponent() {
                             </div>
                           </CardContent>
                         </Card>
+                      )}
+
+                      {/* Get Directions Button - Always visible when coordinates are available */}
+                      {coordinates && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="w-full h-8 text-xs mt-2"
+                          asChild
+                        >
+                          <a 
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${
+                              selectedRestaurant?.address 
+                                ? encodeURIComponent(selectedRestaurant.address)
+                                : selectedPOIs[0]?.address
+                                ? encodeURIComponent(selectedPOIs[0].address)
+                                : `${coordinates[0]},${coordinates[1]}`
+                            }`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Get Directions
+                          </a>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -1041,7 +1033,11 @@ export default function MainComponent() {
                                   </p>
                                   <div className="flex gap-2 mt-2 justify-end">
                                     <a 
-                                      href={`https://www.google.com/maps/dir/?api=1&destination=${selectedRestaurant.latitude},${selectedRestaurant.longitude}`}
+                                      href={`https://www.google.com/maps/dir/?api=1&destination=${
+                                        selectedRestaurant.address 
+                                          ? encodeURIComponent(selectedRestaurant.address)
+                                          : `${selectedRestaurant.latitude},${selectedRestaurant.longitude}`
+                                      }`}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="text-primary hover:underline text-sm"
@@ -1092,7 +1088,11 @@ export default function MainComponent() {
                                 </p>
                                 <div className="flex gap-2 mt-2 justify-end">
                                   <a 
-                                    href={`https://www.google.com/maps/dir/?api=1&destination=${poi.latitude},${poi.longitude}`}
+                                    href={`https://www.google.com/maps/dir/?api=1&destination=${
+                                      poi.address 
+                                        ? encodeURIComponent(poi.address)
+                                        : `${poi.latitude},${poi.longitude}`
+                                    }`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-primary hover:underline text-sm"
