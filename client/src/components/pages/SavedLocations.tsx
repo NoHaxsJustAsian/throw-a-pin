@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Trash2Icon } from 'lucide-react';
-import type { SavedLocation } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { API_URL } from '@/config';
+
+interface SavedLocation {
+  _id: string;
+  name?: string;
+  latitude: number;
+  longitude: number;
+  created_at: string;
+  folder_ids?: string[];
+}
 
 export default function SavedLocations() {
   const [locations, setLocations] = useState<SavedLocation[]>([]);
@@ -25,14 +33,12 @@ export default function SavedLocations() {
 
   const fetchLocations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setLocations(data || []);
+      const response = await fetch(`${API_URL}/api/locations`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch locations');
+      const data = await response.json();
+      setLocations(data);
     } catch (error) {
       console.error('Error fetching locations:', error);
       toast({
@@ -47,13 +53,13 @@ export default function SavedLocations() {
 
   const deleteLocation = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('locations')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setLocations(locations.filter(loc => loc.id !== id));
+      const response = await fetch(`${API_URL}/api/locations/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to delete location');
+      
+      setLocations(locations.filter(loc => loc._id !== id));
       toast({
         title: 'Success',
         description: 'Location deleted successfully',
@@ -91,7 +97,7 @@ export default function SavedLocations() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {locations.map((location) => (
-            <Card key={location.id}>
+            <Card key={location._id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <h3 className="text-lg font-medium">
@@ -100,7 +106,7 @@ export default function SavedLocations() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => deleteLocation(location.id)}
+                    onClick={() => deleteLocation(location._id)}
                   >
                     <Trash2Icon className="h-4 w-4" />
                   </Button>

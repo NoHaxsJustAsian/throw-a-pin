@@ -1,0 +1,8 @@
+Flask==3.0.0
+flask-cors==4.0.0
+Authlib==1.2.1
+pymongo==4.5.0
+python-dotenv==1.0.0
+requests==2.31.0
+gunicorn==21.2.0
+google-auth-oauthlib==1.2.0 

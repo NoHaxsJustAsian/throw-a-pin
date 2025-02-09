@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth.tsx';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { supabase } from '@/lib/supabase';
+import { API_URL } from '@/config';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,18 +21,8 @@ export default function Login() {
     }
   }, [user, navigate]);
 
-  const handleGoogleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/map`,
-        },
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-    }
+  const handleGoogleSignIn = () => {
+    window.location.href = `${API_URL}/login/google`;
   };
 
   return (

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth.tsx';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -57,7 +57,6 @@ export default function Navbar() {
               {user && (
                 <>
                   <NavLink to="/saved">Saved Locations</NavLink>
-                  <NavLink to="/history">History</NavLink>
                 </>
               )}
             </div>

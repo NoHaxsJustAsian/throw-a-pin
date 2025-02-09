@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { LatLngTuple } from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from "react-leaflet";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,7 @@ import * as turf from "@turf/turf";
 import landGeoJSON from "@/data/land.json";
 import { FeatureCollection } from "geojson";
 import Settings from "@/components/Settings";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth.tsx";
 import { useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Country, State, City } from 'country-state-city';
@@ -29,6 +28,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { API_URL } from "@/config";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const landGeoJSONTyped = landGeoJSON as FeatureCollection;
 
@@ -216,6 +219,12 @@ const OpeningHours: React.FC<{ hours: string }> = ({ hours }) => {
   );
 };
 
+interface Folder {
+  _id: string;
+  name: string;
+  created_at: string;
+}
+
 export default function MainComponent() {
   const location = useLocation();
   const { user } = useAuth();
@@ -235,6 +244,10 @@ export default function MainComponent() {
   const [selectedPOIs, setSelectedPOIs] = useState<any[]>([]);
   const [isRoadtripMode, setIsRoadtripMode] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
 
   // Set initial POI types only once on mount
   useEffect(() => {
@@ -318,32 +331,96 @@ export default function MainComponent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fetch user's folders
+  const fetchFolders = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await fetch(`${API_URL}/api/folders`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch folders');
+      const data = await response.json();
+      setFolders(data);
+    } catch (error) {
+      console.error('Error fetching folders:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch folders',
+        variant: 'destructive',
+      });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchFolders();
+  }, [fetchFolders]);
+
+  const createFolder = async () => {
+    if (!user || !newFolderName.trim()) return;
+    try {
+      const response = await fetch(`${API_URL}/api/folders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: newFolderName.trim(),
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to create folder');
+      
+      toast({
+        title: 'Success',
+        description: 'Folder created successfully!',
+      });
+      setNewFolderName('');
+      setIsCreateFolderOpen(false);
+      fetchFolders();
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create folder',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const saveLocation = async () => {
     if (!user || !coordinates) return;
 
     try {
-      const { error } = await supabase.from("locations").insert([
-        {
-          user_id: user.id,
+      const response = await fetch(`${API_URL}/api/locations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: selectedRestaurant?.name || selectedPOIs[0]?.name || 'Unnamed Location',
           latitude: coordinates[0],
           longitude: coordinates[1],
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (error) throw error;
-      toast({
-        title: "Success",
-        description: "Location saved successfully!",
-        duration: 3000,
+          type: selectedRestaurant ? 'restaurant' : (selectedPOIs[0]?.type || 'pin'),
+          address: selectedRestaurant?.address || selectedPOIs[0]?.address,
+          hours: selectedRestaurant?.hours || selectedPOIs[0]?.hours,
+          folder_ids: selectedFolders,
+        }),
       });
-    } catch (error) {
-      console.error("Error saving location:", error);
+
+      if (!response.ok) throw new Error('Failed to save location');
+
       toast({
-        title: "Error",
-        description: "Failed to save location",
-        variant: "destructive",
-        duration: 3000,
+        title: 'Success',
+        description: 'Location saved successfully!',
+      });
+      setSelectedFolders([]); // Reset selected folders after saving
+    } catch (error) {
+      console.error('Error saving location:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save location',
+        variant: 'destructive',
       });
     }
   };
@@ -1265,6 +1342,49 @@ export default function MainComponent() {
                 </CardContent>
               </Card>
             )}
+
+            <div className="flex items-center space-x-4 p-4 border-t">
+              {user && coordinates && (
+                <>
+                  <div className="flex-1">
+                    <Select
+                      value={selectedFolders.join(',')}
+                      onValueChange={(value) => setSelectedFolders(value ? value.split(',') : [])}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select folders (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {folders.map((folder) => (
+                          <SelectItem key={folder._id} value={folder._id}>
+                            {folder.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">New Folder</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create New Folder</DialogTitle>
+                      </DialogHeader>
+                      <div className="flex flex-col space-y-4">
+                        <Input
+                          placeholder="Folder name"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                        />
+                        <Button onClick={createFolder}>Create</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button onClick={saveLocation}>Save Location</Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
