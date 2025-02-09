@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import PlacesGrid from "./PlacesGrid"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, MoreVertical, Trash2, Eye, Link2 } from "lucide-react"
+import { Plus, MoreVertical, Trash2, Eye, Link2, Pencil } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/hooks/use-toast"
@@ -39,6 +39,8 @@ export default function PlacesPage() {
   const [newCollectionName, setNewCollectionName] = useState("")
   const { user } = useAuth()
   const { toast } = useToast()
+  const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null)
+  const [newName, setNewName] = useState("")
 
   useEffect(() => {
     if (user) {
@@ -140,6 +142,40 @@ export default function PlacesPage() {
     }
   }
 
+  const renameCollection = async () => {
+    if (!collectionToRename || !newName.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from("collections")
+        .update({ name: newName.trim() })
+        .eq("id", collectionToRename.id);
+
+      if (error) throw error;
+
+      setCollections(collections.map(c => 
+        c.id === collectionToRename.id 
+          ? { ...c, name: newName.trim() } 
+          : c
+      ));
+
+      setCollectionToRename(null);
+      setNewName("");
+      
+      toast({
+        title: "Success",
+        description: "Collection renamed successfully",
+      });
+    } catch (error) {
+      console.error("Error renaming collection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to rename collection",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen pt-16 container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
@@ -208,6 +244,15 @@ export default function PlacesPage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
+                        setCollectionToRename(collection);
+                        setNewName(collection.name);
+                      }}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
                         const shareUrl = `${window.location.origin}/lists/${collection.id}`;
                         navigator.clipboard.writeText(shareUrl);
                         toast({
@@ -247,6 +292,21 @@ export default function PlacesPage() {
           />
         </div>
       </div>
+      <Dialog open={!!collectionToRename} onOpenChange={() => setCollectionToRename(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Collection</DialogTitle>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Collection name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <Button onClick={renameCollection}>Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -22,6 +22,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
 
+const pinIcon = L.divIcon({
+  html: '📍',
+  className: 'pin-emoji-marker',
+  iconSize: [32, 32],
+  iconAnchor: [16, 28],
+  popupAnchor: [0, -28]
+});
+
 interface PlaceWithLoadingName extends Place {
   isLoadingName?: boolean;
   locationString?: string;
@@ -216,6 +224,7 @@ export default function SharedList() {
             <Marker 
               key={index} 
               position={position}
+              icon={pinIcon}
             >
               <Popup>
                 <div className="p-1">
@@ -231,6 +240,7 @@ export default function SharedList() {
             positions={positions}
             color="#3b82f6"
             weight={3}
+            dashArray="10, 10"
           />
         </MapContainer>
       </div>

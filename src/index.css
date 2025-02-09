@@ -66,3 +66,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+.pin-emoji-marker {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  font-size: 32px;
+  line-height: 1;
+}

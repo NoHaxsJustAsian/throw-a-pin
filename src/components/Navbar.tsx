@@ -50,7 +50,7 @@ export default function Navbar() {
               className="flex items-center space-x-2 font-bold"
             >
               <span className="text-2xl">📍</span>
-              <span className="inline-block font-semibold">Throw a Pin</span>
+              <span className="inline-block font-semibold">throw-a-pin</span>
             </Link>
             <div className="hidden md:flex space-x-6">
               <NavLink to="/map">Map</NavLink>
