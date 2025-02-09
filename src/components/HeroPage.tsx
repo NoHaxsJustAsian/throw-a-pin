@@ -235,7 +235,7 @@ function HeroCards() {
         transition={{ duration: 0.8 }}
         viewport={{ once: false, margin: "-30% 0px -30% 0px" }}
         style={{ position: 'absolute', top: '50vh', left: '10vw', width: '300px' }} 
-        className="text-foreground z-10"
+        className="text-foreground z-10 text-glow"
       >
         <h1 className="text-[2.5rem] m-0 mb-2 relative">
           throw‑a‑pin{" "}
@@ -321,7 +321,7 @@ function HeroCards() {
           transform: 'translate(-50%, -50%)',
           width: '600px',
         }}
-        className="text-foreground z-10"
+        className="text-foreground z-10 text-glow"
       >
         {/* Text content */}
         <div className="mb-8">
@@ -351,7 +351,7 @@ function HeroCards() {
           transform: 'translate(-50%, -50%)',
           width: '600px',
         }}
-        className="text-foreground z-10"
+        className="text-foreground z-10 text-glow"
       >
         {/* Text content */}
         <div className="mb-8">
@@ -380,7 +380,7 @@ function HeroCards() {
             right: '15vw',
             width: '400px',
           }}
-          className="text-right"
+          className="text-right text-glow"
         >
           <h2 className="text-2xl font-semibold mb-4">Smart Recommendations</h2>
           <p className="text-muted-foreground">Our algorithm learns from your preferences to suggest destinations you'll love.</p>
@@ -398,7 +398,7 @@ function HeroCards() {
             width: '400px',
             top: '150px'
           }}
-          className="text-right"
+          className="text-right text-glow"
         >
           <h2 className="text-2xl font-semibold mb-4">Travel Planning Tools</h2>
           <p className="text-muted-foreground">Create itineraries, save favorite locations, and plan your next adventure with ease.</p>
@@ -416,7 +416,7 @@ function HeroCards() {
             width: '400px',
             top: '300px'
           }}
-          className="text-right"
+          className="text-right text-glow"
         >
           <h2 className="text-2xl font-semibold mb-4">Community Insights</h2>
           <p className="text-muted-foreground">Discover hidden gems and local favorites shared by our global community of travelers.</p>
@@ -438,7 +438,7 @@ function HeroCards() {
           width: '600px',
           textAlign: 'center'
         }}
-        className="text-foreground z-10"
+        className="text-foreground z-10 text-glow"
       >
         <h2 className="text-3xl font-semibold mb-4">Ready to Start Your Journey?</h2>
         <p className="text-muted-foreground mb-8">Join our community of adventurers and discover your next destination.</p>
