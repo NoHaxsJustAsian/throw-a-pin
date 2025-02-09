@@ -11,7 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 export default function App() {
   return (
     <ThemeProvider defaultTheme="dark" attribute="class">
-      <Router> d
+      <Router>
         <div className="min-h-screen bg-background">
           <Navbar />
           <Routes>
