@@ -113,13 +113,37 @@ export default function SharedList() {
 
         // Then fetch location details for each place in parallel
         const locationPromises = places.map(async (place, index) => {
-          if (!place.name) {
+          if (!place.name && !place.address) {
             try {
-              const locationString = await getLocationDetails(place.latitude, place.longitude);
-              return { index, locationString };
+              const locationInfo = await getLocationDetails(place.latitude, place.longitude);
+              
+              // Update the database with the new information
+              if (locationInfo.address) {
+                const { error: updateError } = await supabase
+                  .from("places")
+                  .update({ 
+                    address: locationInfo.address,
+                    name: locationInfo.locationString 
+                  })
+                  .eq("id", place.id);
+
+                if (updateError) {
+                  console.error('Error updating place:', updateError);
+                }
+              }
+              
+              return { 
+                index, 
+                locationString: locationInfo.locationString,
+                address: locationInfo.address 
+              };
             } catch (error) {
               console.error('Error fetching location:', error);
-              return { index, locationString: 'Unknown Location' };
+              return { 
+                index, 
+                locationString: 'Unknown Location',
+                address: null 
+              };
             }
           }
           return null;
@@ -135,7 +159,8 @@ export default function SharedList() {
               updatedPlaces[result.index] = {
                 ...updatedPlaces[result.index],
                 isLoadingName: false,
-                locationString: result.locationString
+                locationString: result.locationString,
+                address: result.address
               };
               return {
                 ...prev,

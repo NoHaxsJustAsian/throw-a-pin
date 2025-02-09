@@ -30,11 +30,21 @@ export async function getLocationDetails(latitude: number, longitude: number) {
         locationParts.push(data.address.country);
       }
 
-      return locationParts.join(', ');
+      // Return both the formatted location string and the full address
+      return {
+        locationString: locationParts.join(', '),
+        address: data.display_name
+      };
     }
-    return 'Unknown Location';
+    return {
+      locationString: 'Unknown Location',
+      address: null
+    };
   } catch (error) {
     console.error('Error getting location details:', error);
-    return 'Unknown Location';
+    return {
+      locationString: 'Unknown Location',
+      address: null
+    };
   }
 }
