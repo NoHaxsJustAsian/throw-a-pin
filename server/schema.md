@@ -11,6 +11,7 @@
   "auth_type": String,       // "google" or "twitter"
   "display_name": String,    // Display name
   "profile_picture": String, // URL to profile picture (optional)
+  "total_pins": Number, // Total locations saved by the user
   "created_at": DateTime     // When the user was first created
 }
 ```
@@ -19,11 +20,13 @@
 ```javascript
 {
   "_id": ObjectId,
-  "name": String,           // Name of the folder
+  "name": String,
   "user": {
-    "email": String         // User's email
+    "_id": ObjectId,         // Reference to User _id
+    "display_name": String   // Store display name for easy access
   },
-  "created_at": DateTime    // When the folder was created
+  "is_public": Boolean,
+  "created_at": DateTime
 }
 ```
 
@@ -31,18 +34,20 @@
 ```javascript
 {
   "_id": ObjectId,
-  "name": String,           // Name of the location
-  "latitude": Number,       // Latitude coordinate
-  "longitude": Number,      // Longitude coordinate
-  "folder_ids": [ObjectId], // References to folders (optional)
+  "name": String,
+  "latitude": Number,
+  "longitude": Number,
+  "list_ids": [ObjectId],
   "user": {
-    "email": String         // User's email
+    "_id": ObjectId,         // Reference to User _id
+    "display_name": String   // Store display name for easy access
   },
-  "address": String,        // Full address (optional)
-  "hours": String,          // Hours of operation (optional)
-  "type": String,          // Type of location (e.g., restaurant, park, etc.) (optional)
-  "created_at": DateTime    // When the location was saved
+  "address": String,
+  "hours": String,
+  "type": String,
+  "created_at": DateTime
 }
+
 ```
 
 ## Relationships
@@ -57,12 +62,18 @@
 // Users Collection
 db.users.createIndex({ "email": 1 }, { unique: true })
 db.users.createIndex({ "display_name": 1 }, { unique: true })
+db.users.createIndex({ "total_pins": -1 }) 
+
 
 // Folders Collection
-db.folders.createIndex({ "user.email": 1, "name": 1 }, { unique: true })
+db.lists.createIndex({ "user._id": 1, "name": 1 }, { unique: true })
+db.lists.createIndex({ "is_public": 1 })
+
 
 // Saved Locations Collection
-db.saved_locations.createIndex({ "user.email": 1 })
-db.saved_locations.createIndex({ "folder_ids": 1 })
+db.saved_locations.createIndex({ "user._id": 1 })
+db.saved_locations.createIndex({ "list_ids": 1 })
 db.saved_locations.createIndex({ "created_at": -1 })
+
+
 ``` 

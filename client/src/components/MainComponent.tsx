@@ -35,6 +35,47 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 const landGeoJSONTyped = landGeoJSON as FeatureCollection;
 
+// Add a style tag at the top of the file to ensure map tiles stay behind UI elements
+const style = document.createElement('style');
+style.textContent = `
+  .leaflet-tile-pane {
+    z-index: 1 !important;
+  }
+  .leaflet-control-container {
+    z-index: 2;
+  }
+  /* Ensure map container stays below other UI elements */
+  .leaflet-container {
+    z-index: 1 !important;
+  }
+  /* Ensure map panes stay below UI */
+  .leaflet-pane {
+    z-index: 1 !important;
+  }
+  .leaflet-top,
+  .leaflet-bottom {
+    z-index: 2 !important;
+  }
+  /* Keep markers above base map but below UI */
+  .leaflet-marker-pane {
+    z-index: 3 !important;
+  }
+  .leaflet-popup-pane {
+    z-index: 4 !important;
+  }
+  .custom-pin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    contain: paint;
+  }
+  .food-pin {
+    filter: hue-rotate(220deg);
+  }
+`;
+document.head.appendChild(style);
+
 const getLocationIcon = (type: string): string => {
   const lowerType = type.toLowerCase();
 
@@ -65,22 +106,6 @@ const normalizeLocationType = (type: string): string => {
 
   return type; // Return original if no match
 };
-
-// Add styles to head
-const style = document.createElement('style');
-style.textContent = `
-  .custom-pin {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
-    contain: paint;
-  }
-  .food-pin {
-    filter: hue-rotate(220deg);
-  }
-`;
-document.head.appendChild(style);
 
 const RecenterMap: React.FC<{
   coordinates: LatLngTuple | null;
