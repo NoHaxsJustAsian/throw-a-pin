@@ -497,15 +497,18 @@ export default function MainComponent() {
     let lng: number;
 
     if (bounds) {
-      lat = bounds.minLat + Math.random() * (bounds.maxLat - bounds.minLat);
-      lng = bounds.minLng + Math.random() * (bounds.maxLng - bounds.minLng);
+      // Add more precision with Math.random()
+      lat = bounds.minLat + (Math.random() * (bounds.maxLat - bounds.minLat));
+      lng = bounds.minLng + (Math.random() * (bounds.maxLng - bounds.minLng));
     } else {
-      lat = Math.random() * 180 - 90;
-      lng = Math.random() * 360 - 180;
+      // Add more precision for worldwide coordinates
+      lat = (Math.random() * 180 - 90) + (Math.random() / 1000);
+      lng = (Math.random() * 360 - 180) + (Math.random() / 1000);
     }
 
-    lat = parseFloat(lat.toFixed(precision));
-    lng = parseFloat(lng.toFixed(precision));
+    // Round to 6 decimal places for ~11cm precision
+    lat = Number(lat.toFixed(6));
+    lng = Number(lng.toFixed(6));
 
     if (isLandOnly) {
       const onLand = checkIfOnLand(lat, lng);
