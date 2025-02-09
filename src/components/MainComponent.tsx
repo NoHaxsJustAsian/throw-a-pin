@@ -57,6 +57,37 @@ style.textContent = `
   .food-pin {
     filter: hue-rotate(220deg);
   }
+  .map-blur {
+    filter: blur(4px);
+    transition: filter 0.3s ease-out;
+  }
+  .map-spin {
+    animation: spinMap 2s ease-in-out;
+    transform-origin: center center;
+  }
+  @keyframes spinMap {
+    0% {
+      transform: perspective(1000px) rotateY(0deg);
+    }
+    100% {
+      transform: perspective(1000px) rotateY(360deg);
+    }
+  }
+  .throwing-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+  }
+  .throwing-overlay.visible {
+    opacity: 1;
+  }
 `;
 document.head.appendChild(style);
 
@@ -160,6 +191,9 @@ export default function MainComponent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [searchPrecision, setSearchPrecision] = useState<'high' | 'medium' | 'low'>('medium');
+  const [isThrowing, setIsThrowing] = useState(false);
+  const [showPin, setShowPin] = useState(true);
+  const [isNonAntarctic, setIsNonAntarctic] = useState(true);
 
   useEffect(() => {
     // Check if we have coordinates from navigation state
@@ -284,6 +318,12 @@ export default function MainComponent() {
   };
 
   const throwNewPin = async () => {
+    setIsThrowing(true);
+    setShowPin(false);  // Hide pin before animation
+    
+    // Wait a moment before generating new location
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     // Save current location before generating new one
     if (coordinates) {
       setLastLocations(prev => {
@@ -296,85 +336,42 @@ export default function MainComponent() {
       });
     }
 
-    const generateRandomCityCoordinates = (): LatLngTuple => {
-      if (selectedCity && selectedState && selectedCountry) {
-        const cities = City.getCitiesOfState(selectedCountry, selectedState);
-        const city = cities.find(c => c.name === selectedCity);
-        if (city && city.latitude && city.longitude) {
-          return [parseFloat(city.latitude), parseFloat(city.longitude)];
-        }
-      }
-      
-      if (selectedState && selectedCountry) {
-        const cities = City.getCitiesOfState(selectedCountry, selectedState);
-        if (cities.length > 0) {
-          const randomCity = cities[Math.floor(Math.random() * cities.length)];
-          if (randomCity.latitude && randomCity.longitude) {
-            return [parseFloat(randomCity.latitude), parseFloat(randomCity.longitude)];
-          }
-        }
-      }
-      
-      if (selectedCountry) {
-        const states = State.getStatesOfCountry(selectedCountry);
-        const allCities: any[] = [];
-        states.forEach(state => {
-          const cities = City.getCitiesOfState(selectedCountry, state.isoCode);
-          allCities.push(...cities);
-        });
-        if (allCities.length > 0) {
-          const randomCity = allCities[Math.floor(Math.random() * allCities.length)];
-          if (randomCity.latitude && randomCity.longitude) {
-            return [parseFloat(randomCity.latitude), parseFloat(randomCity.longitude)];
-          }
-        }
-      }
+    const generateRandomCoordinates = (): LatLngTuple => {
+      const minLat = isNonAntarctic ? -60 : -90;
+      const maxLat = 90;
+      const minLng = -180;
+      const maxLng = 180;
 
-      // If no location restrictions or couldn't find a city, use a list of major cities
-      const majorCities = [
-        { lat: 40.7128, lng: -74.0060 },    // New York
-        { lat: 51.5074, lng: -0.1278 },     // London
-        { lat: 35.6762, lng: 139.6503 },    // Tokyo
-        { lat: 48.8566, lng: 2.3522 },      // Paris
-        { lat: -33.8688, lng: 151.2093 },   // Sydney
-        { lat: 55.7558, lng: 37.6173 },     // Moscow
-        { lat: 22.3193, lng: 114.1694 },    // Hong Kong
-        { lat: 1.3521, lng: 103.8198 },     // Singapore
-        { lat: -23.5505, lng: -46.6333 },   // São Paulo
-        { lat: 19.4326, lng: -99.1332 },    // Mexico City
-        { lat: 37.7749, lng: -122.4194 },   // San Francisco
-        { lat: 41.9028, lng: 12.4964 },     // Rome
-        { lat: -34.6037, lng: -58.3816 },   // Buenos Aires
-        { lat: 31.2304, lng: 121.4737 },    // Shanghai
-        { lat: 25.2048, lng: 55.2708 },     // Dubai
-      ];
-      
-      const randomCity = majorCities[Math.floor(Math.random() * majorCities.length)];
-      return [randomCity.lat, randomCity.lng];
-    };
-
-    const generateRegularPin = (): LatLngTuple => {
-      const bounds = getBoundingBox();
       let lat: number;
       let lng: number;
 
+      const bounds = getBoundingBox();
+
       if (bounds) {
-        lat = bounds.minLat + Math.random() * (bounds.maxLat - bounds.minLat);
+        // Use map bounds but respect the Antarctic limit
+        lat = Math.max(
+          minLat,
+          bounds.minLat + Math.random() * (bounds.maxLat - bounds.minLat)
+        );
         lng = bounds.minLng + Math.random() * (bounds.maxLng - bounds.minLng);
       } else {
-        lat = Math.random() * 180 - 90;
-        lng = Math.random() * 360 - 180;
+        lat = minLat + Math.random() * (maxLat - minLat);
+        lng = minLng + Math.random() * (maxLng - minLng);
       }
 
-      lat = parseFloat(lat.toFixed(precision));
-      lng = parseFloat(lng.toFixed(precision));
+      // Convert precision to decimal places (0 = whole number, 1 = tenths, 2 = hundredths, etc.)
+      const decimalPlaces = Math.max(6, precision);
+      
+      // Use Number to maintain floating point precision
+      lat = Number(lat.toFixed(decimalPlaces));
+      lng = Number(lng.toFixed(decimalPlaces));
 
       if (isLandOnly) {
         const onLand = checkIfOnLand(lat, lng);
         if (onLand) {
           return [lat, lng];
         } else {
-          return generateRegularPin();
+          return generateRandomCoordinates();
         }
       } else {
         return [lat, lng];
@@ -438,7 +435,7 @@ export default function MainComponent() {
         let found = false;
 
         while (attempt <= maxAttempts && !found) {
-          const cityCoords = generateRandomCityCoordinates();
+          const cityCoords = generateRandomCoordinates();
           setCoordinates(cityCoords); // Show the search location on the map
           found = await searchForRestaurant(cityCoords);
           
@@ -460,7 +457,7 @@ export default function MainComponent() {
       } else {
         // Regular pin throw
         setSelectedRestaurant(null);
-        const newCoordinates = generateRegularPin();
+        const newCoordinates = generateRandomCoordinates();
         setCoordinates(newCoordinates);
       }
 
@@ -476,6 +473,12 @@ export default function MainComponent() {
         variant: "destructive",
         duration: 3000,
       });
+    } finally {
+      // Wait for map to finish moving before removing overlay
+      setTimeout(() => {
+        setIsThrowing(false);
+        setShowPin(true);
+      }, 1500);
     }
   };
 
@@ -684,7 +687,6 @@ export default function MainComponent() {
         const [hours, minutes = '00'] = t.trim().split(':');
         return parseInt(hours) * 100 + parseInt(minutes);
       });
-      return time >= start && time <= end;
     });
   };
 
@@ -883,11 +885,29 @@ export default function MainComponent() {
               <CardContent className="p-0">
                 <div className="h-[600px] w-full relative">
                   <CoordinateOverlay coordinates={coordinates} />
+                  
+                  {/* Add the throwing overlay */}
+                  <div className={cn(
+                    "throwing-overlay",
+                    isThrowing && "visible",
+                    // Only allow pointer events when throwing
+                    isThrowing ? "pointer-events-auto" : "pointer-events-none"
+                  )}>
+                    <div className="text-center">
+                      <span className="text-4xl mb-4 block">📍</span>
+                      <h3 className="text-xl font-semibold text-foreground">Throwing a pin...</h3>
+                    </div>
+                  </div>
+                  
                   <MapContainer
                     center={[0, 0]}
                     zoom={2}
                     style={{ height: "100%", width: "100%" }}
                     zoomControl={false}
+                    className={cn(
+                      isThrowing && "map-blur map-spin",
+                      "transition-all duration-300"
+                    )}
                   >
                     <ZoomControl position="topright" />
                     <TileLayer
@@ -901,7 +921,7 @@ export default function MainComponent() {
                       }
                       maxZoom={20}
                     />
-                    {coordinates && (
+                    {coordinates && showPin && (
                       <Marker 
                         position={coordinates}
                         icon={selectedRestaurant ? foodPin : regularPin}
@@ -994,6 +1014,8 @@ export default function MainComponent() {
               findRestaurantsNearMe={findRestaurantsNearMe}
               searchPrecision={searchPrecision}
               setSearchPrecision={setSearchPrecision}
+              isNonAntarctic={isNonAntarctic}
+              setIsNonAntarctic={setIsNonAntarctic}
             />
           </div>
         </div>

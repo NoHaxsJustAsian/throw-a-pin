@@ -7,6 +7,7 @@ import SavedLocations from "@/pages/SavedLocations";
 import MainComponent from "@/components/MainComponent";
 import History from "@/pages/History";
 import Places from "@/components/PlacesPage";
+import ResetPassword from "@/pages/ResetPassword";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/saved" element={<SavedLocations />} />
             <Route path="/history" element={<History />} />
             <Route path="/places" element={<Places />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
           <Toaster />
         </div>

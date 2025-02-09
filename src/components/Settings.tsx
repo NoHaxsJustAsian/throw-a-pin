@@ -64,6 +64,8 @@ interface SettingsProps {
   isLoading: boolean;
   searchPrecision?: 'high' | 'medium' | 'low';
   setSearchPrecision?: (precision: 'high' | 'medium' | 'low') => void;
+  isNonAntarctic: boolean;
+  setIsNonAntarctic: (value: boolean) => void;
 }
 
 export default function Settings({
@@ -91,6 +93,8 @@ export default function Settings({
   isLoading,
   searchPrecision = 'medium',
   setSearchPrecision,
+  isNonAntarctic = true,
+  setIsNonAntarctic,
 }: SettingsProps) {
   const [countries, setCountries] = useState<ICountry[]>([]);
   const [states, setStates] = useState<IState[]>([]);
@@ -159,6 +163,20 @@ export default function Settings({
                   id="land-only"
                   checked={isLandOnly}
                   onCheckedChange={setIsLandOnly}
+                />
+              </div>
+
+              <div className="flex items-center justify-between space-x-2">
+                <Label htmlFor="non-antarctic" className="flex flex-col space-y-1">
+                  <span>Non-Antarctic</span>
+                  <span className="font-normal text-sm text-muted-foreground">
+                    Exclude Antarctica from random locations
+                  </span>
+                </Label>
+                <Switch
+                  id="non-antarctic"
+                  checked={isNonAntarctic}
+                  onCheckedChange={setIsNonAntarctic}
                 />
               </div>
             </AccordionContent>
