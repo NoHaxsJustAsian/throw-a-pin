@@ -19,6 +19,7 @@ import { MoreVertical } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getLocationDetails } from "@/lib/utils"
 import { Plus } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface PlacesGridProps {
   selectedCollections: Collection[];
@@ -87,37 +88,43 @@ export default function PlacesGrid({
 
   async function fetchPlaces(userId: string) {
     try {
-      setLoading(true)
+      setLoading(true);
       const { data, error } = await supabase
         .from("places")
         .select("*")
-        .eq("user_id", userId)
-  
-      if (error) throw error
-  
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
       if (data) {
-        // Fetch location details for places without names
-        const placesWithLocation = await Promise.all(
-          data.map(async (place) => {
-            if (!place.name) {
-              const locationString = await getLocationDetails(place.latitude, place.longitude);
-              return { ...place, locationString };
-            }
-            return place;
-          })
-        );
-        setPlaces(placesWithLocation)
+        // Set places immediately with loading state
+        setPlaces(data.map(place => ({
+          ...place,
+          locationString: place.name || 'Loading location...'
+        })));
+        setLoading(false);
+
+        // Then fetch location details in background
+        data.forEach(async (place, index) => {
+          if (!place.name) {
+            const locationString = await getLocationDetails(place.latitude, place.longitude);
+            setPlaces(prev => {
+              const updated = [...prev];
+              updated[index] = { ...updated[index], locationString };
+              return updated;
+            });
+          }
+        });
       }
     } catch (error) {
-      console.error("Error fetching places:", error)
-    } finally {
-      setLoading(false)
+      console.error("Error fetching places:", error);
+      setLoading(false);
     }
   }
 
   const fetchCollectionPlaces = async (collectionIds: string[]) => {
     try {
-      setLoading(true)
+      setLoading(true);
       const { data, error } = await supabase
         .from("collection_places")
         .select(`
@@ -125,35 +132,41 @@ export default function PlacesGrid({
           collection_id,
           place:places (*)
         `)
-        .in("collection_id", collectionIds)
+        .in("collection_id", collectionIds);
 
-      if (error) throw error
+      if (error) throw error;
 
       if (data) {
         const uniquePlaces = Array.from(
           new Map(data.map(item => [item.place.id, item.place])).values()
         );
         const placeIds = data.map(item => item.place_id);
-        
-        const placesWithLocation = await Promise.all(
-          uniquePlaces.map(async (place) => {
-            if (!place.name) {
-              const locationString = await getLocationDetails(place.latitude, place.longitude);
-              return { ...place, locationString };
-            }
-            return place;
-          })
-        );
-        
-        setPlaces(placesWithLocation)
-        setCollectionPlaces(placeIds)
+
+        // Set places immediately with loading state
+        setPlaces(uniquePlaces.map(place => ({
+          ...place,
+          locationString: place.name || 'Loading location...'
+        })));
+        setCollectionPlaces(placeIds);
+        setLoading(false);
+
+        // Then fetch location details in background
+        uniquePlaces.forEach(async (place, index) => {
+          if (!place.name) {
+            const locationString = await getLocationDetails(place.latitude, place.longitude);
+            setPlaces(prev => {
+              const updated = [...prev];
+              updated[index] = { ...updated[index], locationString };
+              return updated;
+            });
+          }
+        });
       }
     } catch (error) {
-      console.error("Error fetching collection places:", error)
-    } finally {
-      setLoading(false)
+      console.error("Error fetching collection places:", error);
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeletePlace = async (id: number) => {
     try {
@@ -274,7 +287,12 @@ export default function PlacesGrid({
               <Badge variant="secondary" className="w-fit text-xs">
                 {place.placeType || 'Destination'}
               </Badge>
-              <CardTitle>{place.name || place.locationString || 'Unknown Location'}</CardTitle>
+              <CardTitle className={cn(
+                "line-clamp-2",
+                !place.name && !place.locationString && "animate-pulse"
+              )}>
+                {place.locationString || place.name || 'Loading location...'}
+              </CardTitle>
             </div>
             <div className="flex gap-2">
               <DropdownMenu>

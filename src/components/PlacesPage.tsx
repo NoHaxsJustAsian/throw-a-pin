@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import PlacesGrid from "./PlacesGrid"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, MoreVertical, Trash2 } from "lucide-react"
+import { Plus, MoreVertical, Trash2, Eye, Link2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/hooks/use-toast"
@@ -18,6 +18,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 
 interface Collection {
@@ -199,6 +200,14 @@ export default function PlacesPage() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
                       onClick={() => {
+                        window.open(`/lists/${collection.id}`, '_blank');
+                      }}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Open List
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
                         const shareUrl = `${window.location.origin}/lists/${collection.id}`;
                         navigator.clipboard.writeText(shareUrl);
                         toast({
@@ -207,8 +216,10 @@ export default function PlacesPage() {
                         });
                       }}
                     >
+                      <Link2 className="mr-2 h-4 w-4" />
                       Copy Share Link
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => deleteCollection(collection.id)}
                       className="text-destructive"

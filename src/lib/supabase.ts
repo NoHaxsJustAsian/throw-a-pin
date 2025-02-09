@@ -19,3 +19,10 @@ export type Place = {
   openingHours?: string
   placeType?: string
 }
+
+export type Collection = {
+  id: string
+  name: string
+  user_id: string
+}
+

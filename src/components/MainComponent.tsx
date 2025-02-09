@@ -501,8 +501,8 @@ export default function MainComponent() {
       lat = bounds.minLat + (Math.random() * (bounds.maxLat - bounds.minLat));
       lng = bounds.minLng + (Math.random() * (bounds.maxLng - bounds.minLng));
     } else {
-      // Add more precision for worldwide coordinates
-      lat = (Math.random() * 180 - 90) + (Math.random() / 1000);
+      // Add more precision for worldwide coordinates, with minimum latitude of -60
+      lat = (Math.random() * 150 - 60) + (Math.random() / 1000); // Changed from -90 to -60
       lng = (Math.random() * 360 - 180) + (Math.random() / 1000);
     }
 
@@ -800,6 +800,33 @@ export default function MainComponent() {
       );
     }
   }, [isRoadtripMode, toast]);
+
+  const handleMapClick = async (e: L.LeafletMouseEvent) => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to save locations",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { lat, lng } = e.latlng;
+    
+    // Prevent clicks below -60 degrees latitude
+    if (lat < -60) {
+      toast({
+        title: "Invalid Location",
+        description: "Location must be above -60° latitude",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCoordinates([lat, lng]);
+    setSelectedRestaurant(null);
+    setSelectedPOIs([]);
+  };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] pt-24 pb-16 px-4 sm:px-6 lg:px-8">

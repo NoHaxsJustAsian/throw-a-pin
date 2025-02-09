@@ -9,13 +9,30 @@ import { getLocationDetails } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Copy } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet"
+import "leaflet/dist/leaflet.css"
+import L from 'leaflet'
+import { cn } from "@/lib/utils"
+
+// Fix for default marker icons in Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+})
+
+interface PlaceWithLoadingName extends Place {
+  isLoadingName?: boolean;
+  locationString?: string;
+}
 
 interface SharedCollection {
   id: string
   name: string
   user_id: string
   created_at: string
-  places: Place[]
+  places: PlaceWithLoadingName[]
 }
 
 export default function SharedList() {
@@ -31,7 +48,7 @@ export default function SharedList() {
   }, [id])
 
   const fetchCollection = async () => {
-    if (!id) return
+    if (!id) return;
 
     try {
       // First get the collection details
@@ -39,17 +56,17 @@ export default function SharedList() {
         .from("collections")
         .select("*")
         .eq("id", id)
-        .single()
+        .single();
 
-      if (collectionError) throw collectionError
+      if (collectionError) throw collectionError;
 
       if (!collectionData) {
         toast({
           title: "Not Found",
           description: "This collection doesn't exist or has been deleted",
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
 
       // Then get all places in this collection
@@ -65,39 +82,66 @@ export default function SharedList() {
             place_type
           )
         `)
-        .eq("collection_id", id)
+        .eq("collection_id", id);
 
-      if (placesError) throw placesError
+      if (placesError) throw placesError;
 
       if (placesData) {
-        // Fetch location details for places without names
-        const placesWithLocation = await Promise.all(
-          placesData.map(async (item) => {
-            const place = item.place;
-            if (!place.name) {
-              const locationString = await getLocationDetails(place.latitude, place.longitude);
-              return { ...place, name: locationString };
-            }
-            return place;
-          })
-        );
+        // Initialize all places with loading state
+        const places = placesData.map(item => ({
+          ...item.place,
+          isLoadingName: true,
+          locationString: item.place.name || 'Loading location...'
+        }));
 
+        // Set collection immediately with loading states
         setCollection({
           ...collectionData,
-          places: placesWithLocation
+          places
+        });
+
+        // Remove loading state
+        setLoading(false);
+
+        // Then fetch location details for each place in parallel
+        const locationPromises = places.map(async (place, index) => {
+          if (!place.name) {
+            try {
+              const locationString = await getLocationDetails(place.latitude, place.longitude);
+              return { index, locationString };
+            } catch (error) {
+              console.error('Error fetching location:', error);
+              return { index, locationString: 'Unknown Location' };
+            }
+          }
+          return null;
+        });
+
+        // Update locations as they come in
+        const results = await Promise.all(locationPromises);
+        results.forEach(result => {
+          if (result) {
+            setCollection(prev => {
+              if (!prev) return prev;
+              const updatedPlaces = [...prev.places];
+              updatedPlaces[result.index] = {
+                ...updatedPlaces[result.index],
+                isLoadingName: false,
+                locationString: result.locationString
+              };
+              return {
+                ...prev,
+                places: updatedPlaces
+              };
+            });
+          }
         });
       }
     } catch (error) {
-      console.error("Error fetching collection:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load collection",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+      console.error('Error fetching collection:', error);
+      setLoading(false);
     }
-  }
+  };
 
   const cloneCollection = async () => {
     if (!user || !collection) return;
@@ -148,6 +192,51 @@ export default function SharedList() {
     }
   }
 
+  const renderMap = () => {
+    if (!collection || collection.places.length === 0) return null;
+
+    const positions = collection.places.map(place => [place.latitude, place.longitude] as [number, number]);
+    const bounds = L.latLngBounds(positions);
+    
+    return (
+      <div className="mb-8 h-[400px] border rounded-lg overflow-hidden">
+        <MapContainer
+          bounds={bounds}
+          className="h-full w-full"
+          zoomControl={true}
+          dragging={true}
+          scrollWheelZoom={true}
+          doubleClickZoom={true}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {positions.map((position, index) => (
+            <Marker 
+              key={index} 
+              position={position}
+            >
+              <Popup>
+                <div className="p-1">
+                  <p className="font-medium">{collection.places[index].locationString || 'Unnamed Location'}</p>
+                  {collection.places[index].address && (
+                    <p className="text-sm text-muted-foreground mt-1">{collection.places[index].address}</p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+          <Polyline
+            positions={positions}
+            color="#3b82f6"
+            weight={3}
+          />
+        </MapContainer>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen pt-16 flex items-center justify-center">
@@ -189,6 +278,8 @@ export default function SharedList() {
           </div>
         </div>
 
+        {collection.places.length > 0 && renderMap()}
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {collection.places.map((place) => (
             <Card 
@@ -201,8 +292,11 @@ export default function SharedList() {
                     {place.place_type || 'Destination'}
                   </Badge>
                 </div>
-                <CardTitle className="line-clamp-2">
-                  {place.name || 'Unnamed Location'}
+                <CardTitle className={cn(
+                  "line-clamp-2",
+                  place.isLoadingName && "animate-pulse"
+                )}>
+                  {place.locationString || 'Unnamed Location'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
