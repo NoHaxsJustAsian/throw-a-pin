@@ -59,6 +59,8 @@ interface SettingsProps {
   setSearchPrecision?: (precision: 'high' | 'medium' | 'low') => void;
   findPOIsInView?: () => void;
   findRandomPOI?: () => void;
+  isRoadtripMode?: boolean;
+  setIsRoadtripMode?: (value: boolean) => void;
 }
 
 export default function Settings({
@@ -79,6 +81,8 @@ export default function Settings({
   isLoading,
   findPOIsInView,
   findRandomPOI,
+  isRoadtripMode = false,
+  setIsRoadtripMode,
 }: SettingsProps) {
   const [countries, setCountries] = useState<ICountry[]>([]);
   const [states, setStates] = useState<IState[]>([]);
@@ -143,6 +147,20 @@ export default function Settings({
             id="land-only"
             checked={isLandOnly}
             onCheckedChange={setIsLandOnly}
+          />
+        </div>
+
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="roadtrip-mode" className="flex flex-col items-start text-left">
+            <span className="text-sm">Roadtrip Mode</span>
+            <span className="font-normal text-xs text-muted-foreground">
+              Only generate drivable locations
+            </span>
+          </Label>
+          <Switch
+            id="roadtrip-mode"
+            checked={isRoadtripMode}
+            onCheckedChange={setIsRoadtripMode}
           />
         </div>
 

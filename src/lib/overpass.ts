@@ -1,5 +1,11 @@
 let googleMapsPromise: Promise<void> | null = null;
 
+import * as turf from '@turf/turf';
+import landGeoJSON from "@/data/land.json";
+import { FeatureCollection } from "geojson";
+
+const landGeoJSONTyped = landGeoJSON as FeatureCollection;
+
 async function loadGoogleMaps() {
   if (googleMapsPromise) return googleMapsPromise;
   
@@ -610,12 +616,94 @@ export const findPOIInView = async (bounds: Bounds, poiTypes: string[] = []): Pr
 
 // --- Additional helper functions ---
 
+export const isDrivableTo = async (
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number }
+): Promise<boolean> => {
+  await loadGoogleMaps();
+
+  return new Promise((resolve) => {
+    const directionsService = new google.maps.DirectionsService();
+
+    directionsService.route(
+      {
+        origin: origin,
+        destination: destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      }
+    );
+  });
+};
+
+export const findDrivableLocation = async (
+  userLocation: { lat: number; lng: number },
+  maxAttempts: number = 10,
+  maxDistance: number = 2000 // km
+): Promise<[number, number] | null> => {
+  // Convert maxDistance from km to degrees (approximate)
+  const maxDegrees = maxDistance / 111; // 111km per degree
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Generate a random point within the max distance
+    const angle = Math.random() * 2 * Math.PI;
+    const distance = Math.random() * maxDegrees;
+    
+    const newLat = userLocation.lat + distance * Math.cos(angle);
+    const newLng = userLocation.lng + distance * Math.sin(angle);
+
+    // Check if the point is on land
+    const point = turf.point([newLng, newLat]);
+    const isOnLand = landGeoJSONTyped.features.some((feature: any) =>
+      turf.booleanPointInPolygon(point, feature)
+    );
+
+    if (!isOnLand) {
+      console.log(`Attempt ${attempt + 1}: Point not on land, trying again...`);
+      continue;
+    }
+
+    // Check if it's drivable
+    const isDrivable = await isDrivableTo(
+      userLocation,
+      { lat: newLat, lng: newLng }
+    );
+
+    if (isDrivable) {
+      return [newLat, newLng];
+    }
+
+    console.log(`Attempt ${attempt + 1}: Location not drivable, trying again...`);
+  }
+
+  return null;
+};
+
 export const findRandomPOI = async (
   mapBounds: Bounds,
   poiTypes: string[],
+  options?: {
+    roadtripMode?: boolean;
+    userLocation?: { lat: number; lng: number };
+  }
 ): Promise<Place | null> => {
   // Generate random coordinates anywhere in the world
-  const generateRandomCoordinates = (): [number, number] => {
+  const generateRandomCoordinates = async (): Promise<[number, number]> => {
+    if (options?.roadtripMode && options.userLocation) {
+      const drivableLocation = await findDrivableLocation(options.userLocation);
+      if (drivableLocation) {
+        return drivableLocation;
+      }
+      // If no drivable location found, fall back to regular random coordinates
+      console.log('No drivable location found, falling back to regular random coordinates');
+    }
+    
     const lat = Math.random() * 180 - 90;  // -90 to 90
     const lng = Math.random() * 360 - 180; // -180 to 180
     return [lat, lng];
@@ -623,7 +711,7 @@ export const findRandomPOI = async (
 
   // Try up to 5 times to find a POI
   for (let attempt = 0; attempt < 5; attempt++) {
-    const coordinates = generateRandomCoordinates();
+    const coordinates = await generateRandomCoordinates();
     try {
       const result = await findPOI(coordinates, {
         poiTypes,
@@ -632,6 +720,19 @@ export const findRandomPOI = async (
       });
       
       if (result) {
+        // If in roadtrip mode, verify the POI is drivable
+        if (options?.roadtripMode && options.userLocation) {
+          const isDrivable = await isDrivableTo(
+            options.userLocation,
+            { lat: result.latitude, lng: result.longitude }
+          );
+          
+          if (!isDrivable) {
+            console.log(`Found POI is not drivable, trying again...`);
+            continue;
+          }
+        }
+        
         return result;
       }
       console.log(`Attempt ${attempt + 1}: No POIs found at coordinates ${coordinates}, trying again...`);

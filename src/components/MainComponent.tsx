@@ -19,7 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Country, State, City } from 'country-state-city';
-import { checkIfOpen, findRestaurantsNearMe, findRandomPOI, findPOI, findPOIInView } from "@/lib/overpass";
+import { checkIfOpen, findRestaurantsNearMe, findRandomPOI, findPOI, findPOIInView, findDrivableLocation } from "@/lib/overpass";
 import L from 'leaflet';
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -233,6 +233,8 @@ export default function MainComponent() {
   const [enablePOI, setEnablePOI] = useState(false);
   const [poiTypes, setPoiTypes] = useState<string[]>([]);
   const [selectedPOIs, setSelectedPOIs] = useState<any[]>([]);
+  const [isRoadtripMode, setIsRoadtripMode] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Set initial POI types only once on mount
   useEffect(() => {
@@ -513,6 +515,37 @@ export default function MainComponent() {
     }
 
     try {
+      setIsLoading(true);
+
+      if (isRoadtripMode) {
+        // Check if we have user location for roadtrip mode
+        if (!userLocation) {
+          toast({
+            title: "Location Required",
+            description: "Please enable location services for roadtrip mode",
+            variant: "destructive",
+            duration: 3000,
+          });
+          return;
+        }
+
+        // Try to find a drivable location
+        const drivableLocation = await findDrivableLocation(userLocation);
+        if (!drivableLocation) {
+          toast({
+            title: "No Drivable Location Found",
+            description: "Could not find a drivable location. Try again or disable roadtrip mode.",
+            variant: "destructive",
+            duration: 3000,
+          });
+          return;
+        }
+        setSelectedRestaurant(null);
+        setSelectedPOIs([]);
+        setCoordinates(drivableLocation);
+        return;
+      }
+
       if (findRestaurant || (enablePOI && poiTypes.length > 0)) {
         // Keep trying different cities until we find a place
         let maxAttempts = 5;
@@ -573,6 +606,8 @@ export default function MainComponent() {
         variant: "destructive",
         duration: 3000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -668,66 +703,30 @@ export default function MainComponent() {
 
       let selectedPOI = null;
       let attempts = 0;
-      const maxAttempts = 10; // Increased max attempts to account for duplicate checks
-      const regions = [
-        // Major regions around the world to try
-        { north: 60, south: 35, east: 180, west: -180 },  // Northern Hemisphere
-        { north: 35, south: 0, east: 180, west: -180 },   // Tropical Northern
-        { north: 0, south: -35, east: 180, west: -180 },  // Tropical Southern
-        { north: -35, south: -60, east: 180, west: -180 } // Southern Hemisphere
-      ];
+      const maxAttempts = 10;
 
-      const lastLocation = lastLocations[0] || null;
-
-      while (!selectedPOI && attempts < maxAttempts) {
-        // Try current map bounds first
-        const tempPOI = await findRandomPOI(mapBounds, poiTypes);
-        if (tempPOI && !isLocationDuplicate(tempPOI, lastLocation)) {
-          selectedPOI = tempPOI;
-        }
-        
-        if (!selectedPOI) {
-          // If not found, try each region
-          for (const region of regions) {
-            if (!selectedPOI) {
-              const tempRegionPOI = await findRandomPOI(region, poiTypes);
-              if (tempRegionPOI && !isLocationDuplicate(tempRegionPOI, lastLocation)) {
-                selectedPOI = tempRegionPOI;
-                break;
-              }
-            }
-          }
-        }
-        
-        attempts++;
-        
-        if (!selectedPOI && attempts === maxAttempts - 1) {
-          // On second-to-last attempt, try with all POI types if user-selected types fail
-          const allPOITypes = ["food", "bars", "entertainment", "shopping", "arts", "nature", "tourist"];
-          const tempAllTypesPOI = await findRandomPOI(mapBounds, allPOITypes);
-          if (tempAllTypesPOI && !isLocationDuplicate(tempAllTypesPOI, lastLocation)) {
-            selectedPOI = tempAllTypesPOI;
-          }
-          
-          // If still not found, try regions with all types
-          if (!selectedPOI) {
-            for (const region of regions) {
-              if (!selectedPOI) {
-                const tempRegionAllTypesPOI = await findRandomPOI(region, allPOITypes);
-                if (tempRegionAllTypesPOI && !isLocationDuplicate(tempRegionAllTypesPOI, lastLocation)) {
-                  selectedPOI = tempRegionAllTypesPOI;
-                  break;
-                }
-              }
-            }
-          }
-        }
+      // Check if roadtrip mode is enabled and we have user location
+      if (isRoadtripMode && !userLocation) {
+        toast({
+          title: "Location Required",
+          description: "Please enable location services for roadtrip mode",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
       }
+
+      selectedPOI = await findRandomPOI(mapBounds, poiTypes, {
+        roadtripMode: isRoadtripMode,
+        userLocation: userLocation || undefined
+      });
 
       if (!selectedPOI) {
         toast({
-          title: "No unique POIs found",
-          description: "Unable to find any new points of interest. Please try again.",
+          title: "No POIs found",
+          description: isRoadtripMode 
+            ? "Unable to find any drivable points of interest. Try disabling roadtrip mode or selecting different POI types."
+            : "Unable to find any points of interest. Please try again.",
           variant: "destructive",
           duration: 3000,
         });
@@ -755,6 +754,30 @@ export default function MainComponent() {
       setIsLoading(false);
     }
   };
+
+  // Get user's location when roadtrip mode is enabled
+  useEffect(() => {
+    if (isRoadtripMode) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error('Error getting user location:', error);
+          toast({
+            title: "Location Error",
+            description: "Please enable location services for roadtrip mode",
+            variant: "destructive",
+            duration: 3000,
+          });
+          setIsRoadtripMode(false);
+        }
+      );
+    }
+  }, [isRoadtripMode, toast]);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] pt-24 pb-16 px-4 sm:px-6 lg:px-8">
@@ -1152,6 +1175,8 @@ export default function MainComponent() {
               setSearchPrecision={setSearchPrecision}
               findPOIsInView={handleFindPOIsInView}
               findRandomPOI={handleFindRandomPOI}
+              isRoadtripMode={isRoadtripMode}
+              setIsRoadtripMode={setIsRoadtripMode}
             />
 
             {lastLocations.length > 0 && (
