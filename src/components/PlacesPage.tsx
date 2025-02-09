@@ -178,110 +178,97 @@ export default function PlacesPage() {
 
   return (
     <div className="min-h-screen pt-16 container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Saved Locations</h1>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Collection
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Collection</DialogTitle>
-            </DialogHeader>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Collection name"
-                value={newCollectionName}
-                onChange={(e) => setNewCollectionName(e.target.value)}
-              />
-              <Button onClick={createCollection}>Create</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-      
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="w-full md:w-64 space-y-2">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold">Your Collections</h2>
-            {selectedCollections.length > 0 && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setSelectedCollections([])}
-              >
-                Clear
-              </Button>
+      <div className="flex flex-col md:flex-row gap-8">
+        <div className="w-64 space-y-4">
+          <div className="flex flex-col gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="w-full" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Collection
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Collection</DialogTitle>
+                </DialogHeader>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Collection name"
+                    value={newCollectionName}
+                    onChange={(e) => setNewCollectionName(e.target.value)}
+                  />
+                  <Button onClick={createCollection}>Create</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {collections.map((collection) => (
+              <div key={collection.id} className="space-y-1">
+                <div className="flex gap-2">
+                  <Button
+                    variant={selectedCollections.some(c => c.id === collection.id) ? "default" : "outline"}
+                    className="w-full justify-start text-left"
+                    onClick={() => toggleCollection(collection)}
+                  >
+                    <span className="truncate">{collection.name}</span>
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          window.open(`/lists/${collection.id}`, '_blank');
+                        }}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        Open List
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setCollectionToRename(collection);
+                          setNewName(collection.name);
+                        }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const shareUrl = `${window.location.origin}/lists/${collection.id}`;
+                          navigator.clipboard.writeText(shareUrl);
+                          toast({
+                            title: "Link Copied",
+                            description: "Share link has been copied to clipboard",
+                          });
+                        }}
+                      >
+                        <Link2 className="mr-2 h-4 w-4" />
+                        Copy Share Link
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => deleteCollection(collection.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Collection
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            ))}
+            {collections.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No collections yet. Create one to get started!
+              </p>
             )}
           </div>
-          {collections.map((collection) => (
-            <div key={collection.id} className="space-y-1">
-              <div className="flex gap-2">
-                <Button
-                  variant={selectedCollections.some(c => c.id === collection.id) ? "default" : "outline"}
-                  className="w-full justify-start text-left"
-                  onClick={() => toggleCollection(collection)}
-                >
-                  <span className="truncate">{collection.name}</span>
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => {
-                        window.open(`/lists/${collection.id}`, '_blank');
-                      }}
-                    >
-                      <Eye className="mr-2 h-4 w-4" />
-                      Open List
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setCollectionToRename(collection);
-                        setNewName(collection.name);
-                      }}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        const shareUrl = `${window.location.origin}/lists/${collection.id}`;
-                        navigator.clipboard.writeText(shareUrl);
-                        toast({
-                          title: "Link Copied",
-                          description: "Share link has been copied to clipboard",
-                        });
-                      }}
-                    >
-                      <Link2 className="mr-2 h-4 w-4" />
-                      Copy Share Link
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => deleteCollection(collection.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Collection
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          ))}
-          {collections.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No collections yet. Create one to get started!
-            </p>
-          )}
         </div>
         
         <div className="flex-1">
