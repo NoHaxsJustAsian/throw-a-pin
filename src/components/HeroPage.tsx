@@ -349,8 +349,15 @@ function HeroCards() {
         </div>
 
         {/* Video preview */}
-        <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-          [Connect Preview]
+        <div className="w-full h-full bg-muted rounded-lg overflow-hidden">
+          <video
+            src="/connectblackdemo.mp4"
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
         </div>
       </motion.div>
 
@@ -379,8 +386,21 @@ function HeroCards() {
         </div>
 
         {/* Video preview */}
-        <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-          [Discover Preview]
+        <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden">
+          <video
+            src="/mapdemoblack.mp4"
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={{ opacity: 0 }}
+            onCanPlay={(e) => {
+              const video = e.target as HTMLVideoElement;
+              video.style.opacity = '1';
+              video.style.transition = 'opacity 0.5s ease-in-out';
+            }}
+          />
         </div>
       </motion.div>
 
