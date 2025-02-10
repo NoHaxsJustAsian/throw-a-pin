@@ -1063,14 +1063,11 @@ export default function MainComponent() {
                     <ZoomControl position="topright" />
                     <TileLayer
                       url={theme === "dark"
-                        ? "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-                        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       }
-                      attribution={theme === "dark"
-                        ? '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
-                        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                      }
-                      maxZoom={20}
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      maxZoom={19}
                     />
                     {coordinates && (
                       <>

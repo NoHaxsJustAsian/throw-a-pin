@@ -20,7 +20,6 @@ export default function App() {
             <Route path="/map" element={<MainComponent />} />
             <Route path="/login" element={<Login />} />
             <Route path="/saved" element={<PlacesPage />} />
-            <Route path="/history" element={<History />} />
             <Route path="/lists/:id" element={<SharedList />} />
           </Routes>
           <Toaster />
