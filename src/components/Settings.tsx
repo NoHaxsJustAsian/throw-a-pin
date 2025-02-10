@@ -369,14 +369,23 @@ export default function Settings({
 
           <AccordionItem value="poi">
             <AccordionTrigger className="py-2 hover:no-underline">
-              <div className="flex flex-col items-start text-left">
-                <span className="text-sm font-medium">Points of Interest</span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  Select types of places to find
-                </span>
-              </div>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex flex-col items-start text-left opacity-50 cursor-not-allowed w-full">
+                      <span className="text-sm font-medium">Points of Interest</span>
+                      <span className="text-xs text-muted-foreground font-normal">
+                        Select types of places to find
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={5}>
+                    <p>POI features temporarily disabled - servers cost money 😢</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </AccordionTrigger>
-            <AccordionContent className="space-y-3 pt-3 pl-2 text-sm">
+            <AccordionContent className="space-y-3 pt-3 pl-2 text-sm opacity-50">
               <div className="space-y-2">
                 {[
                   { id: 'food', label: 'Food', icon: '🍽️' },
@@ -390,18 +399,12 @@ export default function Settings({
                   <div key={type.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`poi-${type.id}`}
-                      checked={poiTypes?.includes(type.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setPoiTypes?.([...poiTypes || [], type.id]);
-                        } else {
-                          setPoiTypes?.(poiTypes?.filter(t => t !== type.id) || []);
-                        }
-                      }}
+                      checked={false}
+                      disabled={true}
                     />
                     <Label
                       htmlFor={`poi-${type.id}`}
-                      className="text-sm font-normal flex items-center gap-1.5 cursor-pointer"
+                      className="text-sm font-normal flex items-center gap-1.5 cursor-not-allowed"
                     >
                       <span>{type.icon}</span>
                       {type.label}
@@ -417,63 +420,94 @@ export default function Settings({
           <div className="grid grid-cols-2 gap-2">
             <Button 
               onClick={throwNewPin} 
-              className="h-20 flex flex-col items-center justify-center space-y-1"
-              variant="outline"
+              className="h-20 flex flex-col items-center justify-center space-y-1 bg-primary/10 hover:bg-primary/20 dark:bg-primary/20 dark:hover:bg-primary/30"
+              variant="ghost"
               disabled={isLoading}
             >
               <span className="text-2xl">📍</span>
-              <span className="text-xs">Throw a New Pin</span>
+              <div className="flex flex-col items-center">
+                <span className="text-sm font-semibold text-primary">Throw a New Pin</span>
+                <span className="text-[10px] text-muted-foreground">Find your next destination</span>
+              </div>
             </Button>
 
-            <Button 
-              onClick={findRestaurantsNearMe}
-              className="h-20 flex flex-col items-center justify-center space-y-1 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
-              variant="destructive"
-              disabled={isLoading}
-            >
-              <span className="text-2xl">🍽️</span>
-              <span className="text-xs">GF HUNGRY</span>
-            </Button>
-
-            <TooltipProvider>
-              <Tooltip delayDuration={100}>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    onClick={findRandomPOI}
-                    className="h-20 flex flex-col items-center justify-center space-y-1 w-full"
-                    variant="outline"
-                    disabled={isLoading || !poiTypes?.length}
-                  >
-                    <span className="text-2xl">🎯</span>
-                    <span className="text-xs">Random POI</span>
-                  </Button>
+                  <div className="w-full">
+                    <Button 
+                      className="h-20 flex flex-col items-center justify-center space-y-1 w-full bg-red-500/10 hover:bg-red-500/20 dark:bg-red-500/20 dark:hover:bg-red-500/30 cursor-help"
+                      variant="ghost"
+                      disabled={true}
+                    >
+                      <span className="text-2xl">🍽️</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-semibold text-red-600 dark:text-red-400">GF HUNGRY</span>
+                        <span className="text-[10px] text-muted-foreground">Find restaurants nearby</span>
+                      </div>
+                    </Button>
+                  </div>
                 </TooltipTrigger>
-                {!poiTypes?.length && (
-                  <TooltipContent side="bottom">
-                    <p>Select at least one POI category</p>
-                  </TooltipContent>
-                )}
+                <TooltipContent side="top" sideOffset={5} className="w-[300px]">
+                  <div className="space-y-2">
+                    <p className="text-sm">Restaurant search disabled - APIs are expensive 😢</p>
+                    <p className="text-xs text-muted-foreground">Check out how it works:</p>
+                    <video 
+                      src="/gfhungrydemo.mp4" 
+                      className="rounded-lg w-full"
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline
+                    />
+                  </div>
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
-            <TooltipProvider>
-              <Tooltip delayDuration={100}>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    onClick={findPOIsInView}
-                    className="h-20 flex flex-col items-center justify-center space-y-1 w-full"
-                    variant="outline"
-                    disabled={isLoading || !poiTypes?.length}
-                  >
-                    <span className="text-2xl">🔍</span>
-                    <span className="text-xs">Find POIs in View</span>
-                  </Button>
+                  <div className="w-full">
+                    <Button 
+                      className="h-20 flex flex-col items-center justify-center space-y-1 w-full bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 cursor-help"
+                      variant="ghost"
+                      disabled={true}
+                    >
+                      <span className="text-2xl">🎯</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">Random POI</span>
+                        <span className="text-[10px] text-muted-foreground">Find a random place</span>
+                      </div>
+                    </Button>
+                  </div>
                 </TooltipTrigger>
-                {!poiTypes?.length && (
-                  <TooltipContent side="bottom">
-                    <p>Select at least one POI category</p>
-                  </TooltipContent>
-                )}
+                <TooltipContent side="top" sideOffset={5}>
+                  <p>POI features disabled - APIs are expensive, see hero page for demo 😢</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="w-full">
+                    <Button 
+                      className="h-20 flex flex-col items-center justify-center space-y-1 w-full bg-blue-500/10 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 cursor-help"
+                      variant="ghost"
+                      disabled={true}
+                    >
+                      <span className="text-2xl">🔍</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Find POIs in View</span>
+                        <span className="text-[10px] text-muted-foreground">Explore current area</span>
+                      </div>
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={5}>
+                  <p>POI features disabled - APIs are expensive, see hero page for demo 😢</p>
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>

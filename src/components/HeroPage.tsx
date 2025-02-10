@@ -437,8 +437,8 @@ function HeroCards() {
           }}
           className="text-right text-glow"
         >
-          <h2 className="text-2xl font-semibold mb-4">Travel Planning Tools</h2>
-          <p className="text-muted-foreground">Create itineraries, save favorite locations, and plan your next adventure with ease.</p>
+          <h2 className="text-2xl font-semibold mb-4">Save, Share, and Explore</h2>
+          <p className="text-muted-foreground">Create itineraries, save favorite locations, and share your adventures with friends.</p>
         </motion.div>
 
         <motion.div 
@@ -455,8 +455,33 @@ function HeroCards() {
           }}
           className="text-right text-glow"
         >
-          <h2 className="text-2xl font-semibold mb-4">Community Insights</h2>
-          <p className="text-muted-foreground">Discover hidden gems and local favorites shared by our global community of travelers.</p>
+          <h2 className="text-2xl font-semibold mb-4">Girlfriend Friendly</h2>
+          <p className="text-muted-foreground mb-4">No more arguing over where to eat, we've got you covered.</p>
+          
+          <div className="relative group">
+            {/* Demo Video - Hidden by default, shown on hover */}
+            <div className="absolute right-0 top-[calc(100%+1rem)] w-[300px] opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 pointer-events-none">
+              <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden shadow-lg">
+                <video
+                  src="/gfhungrydemo.mp4"
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              </div>
+            </div>
+
+            {/* GF HUNGRY Button */}
+            <div className="inline-flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 dark:bg-red-500/20 dark:hover:bg-red-500/30 px-4 py-3 rounded-lg transition-colors cursor-help">
+              <span className="text-2xl">🍽️</span>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-semibold text-red-600 dark:text-red-400">GF HUNGRY</span>
+                <span className="text-xs text-muted-foreground">Hover to see how it works</span>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
 
