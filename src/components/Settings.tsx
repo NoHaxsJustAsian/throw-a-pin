@@ -151,16 +151,25 @@ export default function Settings({
         </div>
 
         <div className="flex items-center justify-between space-x-2">
-          <Label htmlFor="roadtrip-mode" className="flex flex-col items-start text-left">
-            <span className="text-sm">Roadtrip Mode</span>
-            <span className="font-normal text-xs text-muted-foreground">
-              Only generate drivable locations
-            </span>
-          </Label>
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="roadtrip-mode" className="flex flex-col items-start text-left opacity-50 cursor-not-allowed">
+                  <span className="text-sm">Roadtrip Mode</span>
+                  <span className="font-normal text-xs text-muted-foreground">
+                    Only generate drivable locations
+                  </span>
+                </Label>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={5}>
+                <p>Roadtrip mode temporarily disabled - APIs are expensive 😢</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Switch
             id="roadtrip-mode"
-            checked={isRoadtripMode}
-            onCheckedChange={setIsRoadtripMode}
+            checked={false}
+            disabled={true}
           />
         </div>
 
